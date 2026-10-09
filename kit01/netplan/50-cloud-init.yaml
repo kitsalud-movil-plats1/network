@@ -1,0 +1,30 @@
+network:
+  version: 2
+  renderer: networkd
+  ethernets:
+    enp170s0:
+      dhcp4: false
+      addresses:
+        - 192.168.160.69/24
+      routes:
+        - to: default
+          via: 192.168.160.1
+      nameservers:
+        addresses:
+          - 192.168.215.20
+          - 192.168.215.30
+      dhcp6: false
+    enp171s0:
+      dhcp4: false
+      dhcp6: false
+      accept-ra: false
+      link-local: []
+  vlans:
+    lan0.10:
+      id: 10
+      link: enp171s0
+      accept-ra: false
+      addresses:
+        - 10.20.10.1/24
+        - "fd5a:fc7e:d716:10::1/64"
+        - "fe80::1/64"
