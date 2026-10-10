@@ -1,4 +1,4 @@
-# Salida de 'nft -s list table inet filtro' y 'nft -s list table ip nat_kit' en kit01 (2026-10-10).
+# Salida de 'nft -s list table inet filtro' y 'nft -s list table ip nat_kit' en kit01 (2026-10-10, con el eco desde br-srv).
 # Las tablas ip filter, ip nat, ip mangle, ip raw e ip6 * son de iptables-nft (NetBird y libvirt) y no se versionan.
 table inet filtro {
 	chain input {
@@ -12,6 +12,8 @@ table inet filtro {
 		iifname "lan0.10" icmpv6 type echo-request counter accept
 		iifname "br-com" ip daddr 10.20.40.1 icmp type echo-request counter accept
 		iifname "br-com" ip6 daddr { fd5a:fc7e:d716:40::1, fe80::1 } icmpv6 type echo-request counter accept
+		iifname "br-srv" ip daddr 10.20.20.1 icmp type echo-request counter accept
+		iifname "br-srv" ip6 daddr { fd5a:fc7e:d716:20::1, fe80::1 } icmpv6 type echo-request counter accept
 		iifname { "br-com", "lan0.10" } udp dport 67 counter accept
 		iifname { "br-com", "lan0.10" } ip6 saddr fe80::/10 udp dport 547 counter accept
 		iifname { "br-com", "br-srv", "lan0.10" } ip daddr 10.20.20.10 meta l4proto { tcp, udp } th dport 53 counter accept
