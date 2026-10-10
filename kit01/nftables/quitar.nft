@@ -1,0 +1,7 @@
+#!/usr/sbin/nft -f
+# Quita solo las tablas de kit01 (restauración programada y ExecStop).
+# No toca las tablas de iptables-nft de NetBird y libvirt.
+table inet filtro
+delete table inet filtro
+table ip nat_kit
+delete table ip nat_kit
