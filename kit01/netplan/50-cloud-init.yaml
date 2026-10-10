@@ -14,9 +14,14 @@ network:
           - 192.168.215.20
           - 192.168.215.30
       dhcp6: false
+      accept-ra: false
     enp171s0:
       dhcp4: false
       dhcp6: false
+      accept-ra: false
+      link-local: []
+  dummy-devices:
+    srv-dummy0:
       accept-ra: false
       link-local: []
   vlans:
@@ -27,4 +32,34 @@ network:
       addresses:
         - 10.20.10.1/24
         - "fd5a:fc7e:d716:10::1/64"
+        - "fe80::1/64"
+    lan0.40:
+      id: 40
+      link: enp171s0
+      accept-ra: false
+      link-local: []
+  bridges:
+    br-com:
+      interfaces:
+        - lan0.40
+      parameters:
+        stp: false
+        forward-delay: 0
+      accept-ra: false
+      addresses:
+        - 10.20.40.1/24
+        - "fd5a:fc7e:d716:40::1/64"
+        - "fe80::1/64"
+    br-srv:
+      interfaces:
+        - srv-dummy0
+      parameters:
+        stp: false
+        forward-delay: 0
+      accept-ra: false
+      addresses:
+        - 10.20.20.1/24
+        - 10.20.20.10/24
+        - "fd5a:fc7e:d716:20::1/64"
+        - "fd5a:fc7e:d716:20::10/64"
         - "fe80::1/64"
