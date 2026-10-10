@@ -6,7 +6,7 @@ Configuración de red del kit, con **kit01** como router/firewall (host Ubuntu),
 |---|---|
 | `kit01/netplan/` | Interfaces `enp170s0` (rol `wan0`, uplink, que ignora los RA) y `enp171s0` (rol `lan0`, trunk) con `lan0.10` (Interna), el bridge `br-com` (Comunidad, con `lan0.40` y la VM `prueba01` como puertos) y el bridge `br-srv` (red de servidores, con el puerto dummy `srv-dummy0`). Nombres del kernel, sin renombrar; `fe80::1` en cada interfaz interna |
 | `kit01/sysctl/` | Reenvío IPv4 e IPv6 de kit01 |
-| `kit01/nftables/` | Tabla `inet` con las zonas y las reglas v4/v6, filtrado entre VMs (familia `bridge`) y NAT IPv4 en una tabla aparte |
+| `kit01/nftables/` | Tabla `inet filtro` con las zonas y las reglas v4/v6, y NAT IPv4 en la tabla aparte `ip nat_kit`, sin tocar las tablas de iptables-nft de NetBird y libvirt; más adelante, filtrado entre VMs (familia `bridge`) |
 | `kit01/kea/` | Kea DHCPv4 (pools y reservas por MAC) y DHCPv6 stateless (DNS, dominio y NTP) |
 | `kit01/radvd/` | RA con SLAAC, M=0 y O=1, sin RDNSS |
 | `kit01/portal/` | Portal cautivo con la página de aceptación (nginx), el script que autoriza la MAC en nftables y respuestas para la detección de portal sin Internet |

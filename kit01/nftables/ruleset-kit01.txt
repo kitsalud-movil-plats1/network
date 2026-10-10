@@ -1,0 +1,47 @@
+# Salida de 'nft -s list table inet filtro' y 'nft -s list table ip nat_kit' en kit01 (2026-10-10).
+# Las tablas ip filter, ip nat, ip mangle, ip raw e ip6 * son de iptables-nft (NetBird y libvirt) y no se versionan.
+table inet filtro {
+	chain input {
+		type filter hook input priority filter; policy drop;
+		iif "lo" accept
+		ct state established,related accept
+		ct state invalid counter drop
+		ip6 saddr { fd5a:fc7e:d716::/48, fe80::/10 } icmpv6 type { destination-unreachable, packet-too-big, time-exceeded, parameter-problem, mld-listener-query, mld-listener-report, nd-router-solicit, nd-router-advert, nd-neighbor-solicit, nd-neighbor-advert, mld2-listener-report } counter accept
+		ip6 saddr :: icmpv6 type { nd-neighbor-solicit, mld2-listener-report } counter accept
+		iifname { "wt0", "lan0.10" } icmp type echo-request counter accept
+		iifname "lan0.10" icmpv6 type echo-request counter accept
+		iifname "br-com" ip daddr 10.20.40.1 icmp type echo-request counter accept
+		iifname "br-com" ip6 daddr { fd5a:fc7e:d716:40::1, fe80::1 } icmpv6 type echo-request counter accept
+		iifname { "br-com", "lan0.10" } udp dport 67 counter accept
+		iifname { "br-com", "lan0.10" } ip6 saddr fe80::/10 udp dport 547 counter accept
+		iifname { "br-com", "br-srv", "lan0.10" } ip daddr 10.20.20.10 meta l4proto { tcp, udp } th dport 53 counter accept
+		iifname { "br-com", "br-srv", "lan0.10" } ip6 daddr fd5a:fc7e:d716:20::10 meta l4proto { tcp, udp } th dport 53 counter accept
+		iifname { "br-com", "br-srv", "lan0.10" } ip daddr 10.20.20.10 udp dport 123 counter accept
+		iifname { "br-com", "br-srv", "lan0.10" } ip6 daddr fd5a:fc7e:d716:20::10 udp dport 123 counter accept
+		iifname "lan0.10" ip saddr 10.20.10.10-10.20.10.29 tcp dport { 22, 443 } counter accept
+		iifname "wt0" tcp dport { 22, 443 } counter accept
+		iifname "enp170s0" udp dport 51820 counter accept
+		limit rate 10/second burst 50 packets log prefix "fw-drop " level info
+		counter
+	}
+
+	chain forward {
+		type filter hook forward priority filter; policy drop;
+		ct state established,related accept
+		ct state invalid counter drop
+		icmpv6 type { destination-unreachable, packet-too-big, time-exceeded, parameter-problem } counter accept
+		iifname "lan0.10" oifname "enp170s0" meta nfproto ipv4 counter accept
+		limit rate 10/second burst 50 packets log prefix "fw-drop " level info
+		counter
+	}
+
+	chain output {
+		type filter hook output priority filter; policy accept;
+	}
+}
+table ip nat_kit {
+	chain postrouting {
+		type nat hook postrouting priority srcnat; policy accept;
+		oifname "enp170s0" ip saddr 10.20.0.0/16 counter masquerade
+	}
+}
