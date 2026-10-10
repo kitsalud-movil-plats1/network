@@ -28,7 +28,7 @@ Un paquete tiene que pasar todas las cadenas del mismo gancho, las de iptables-n
 | - | `lo`, conexiones establecidas | Todo |
 | F-19 | `fe80::/10` y la ULA (`::` para DAD y MLD) | ICMPv6 imprescindible (RFC 4890) |
 | F-01, F-22 | Interna y `wt0` | Eco ICMP (IPv6 solo desde la Interna) |
-| F-23 | Comunidad | Eco ICMP solo hacia su gateway (`10.20.40.1`, `fd5a:fc7e:d716:40::1`, `fe80::1`) |
+| F-23 | Comunidad y Servidores (`br-srv`) | Eco ICMP solo hacia su gateway (`10.20.40.1`, `fd5a:fc7e:d716:40::1`; `10.20.20.1`, `fd5a:fc7e:d716:20::1`; y `fe80::1`) |
 | F-04 | Interna y Comunidad | DHCPv4 (`udp/67`) y DHCPv6 (`udp/547` desde `fe80::/10`) |
 | F-03 | Interna, Comunidad y `br-srv` | DNS (`53` tcp/udp) y NTP (`udp/123`) hacia `10.20.20.10` y `fd5a:fc7e:d716:20::10` |
 | F-01, F-21 | Admin (`10.20.10.10-29` en la Interna) y `wt0` | SSH (22) y monitoreo (443) |
