@@ -14,7 +14,7 @@ network:
           - 192.168.215.20
           - 192.168.215.30
       dhcp6: false
-      accept-ra: true
+      accept-ra: false
     enp171s0:
       dhcp4: false
       dhcp6: false

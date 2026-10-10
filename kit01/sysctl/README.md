@@ -2,7 +2,7 @@
 
 [`60-kit01-router.conf`](60-kit01-router.conf) activa el reenvío IPv4 e IPv6, porque kit01 es el router de las redes internas (D-02). Va en `/etc/sysctl.d/60-kit01-router.conf`.
 
-`enp170s0` conserva su IPv6 del uplink con el reenvío activo gracias a `accept-ra: true` en el netplan ([`../netplan/`](../netplan/)). Hasta que esté el firewall base (network#4), la cadena `FORWARD` no filtra el tráfico que kit01 reenvía.
+`enp170s0` ignora los RA del uplink (`accept-ra: false` en [`../netplan/`](../netplan/)), así que kit01 no tiene ruta IPv6 hacia la WAN. Hasta que esté el firewall base (network#4), la cadena `FORWARD` no filtra el tráfico que kit01 reenvía.
 
 ## Cómo se aplica
 
@@ -19,5 +19,4 @@ sudo systemctl stop sysctl-rollback.timer
 | Comando | Resultado esperado |
 |---|---|
 | `sysctl net.ipv4.ip_forward net.ipv6.conf.all.forwarding` | `1` y `1` |
-| `ip -6 route show default dev enp170s0` | La ruta por defecto IPv6 sigue y su `expires` se renueva con el siguiente RA del uplink |
 | `tracepath` entre un equipo de la VLAN 10 y otro de la VLAN 40 (en el laboratorio virtual) | Llega en dos saltos, con kit01 en el primero, en IPv4 e IPv6 |

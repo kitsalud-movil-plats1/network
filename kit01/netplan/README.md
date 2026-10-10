@@ -4,7 +4,7 @@
 
 | Interfaz | Uso | Direcciones |
 |---|---|---|
-| `enp170s0` (MAC `78:55:36:09:07:0b`, rol `wan0`) | Uplink del laboratorio | `192.168.160.69/24` fija, gateway `192.168.160.1`, DNS `192.168.215.20` y `.30`. Con `accept-ra: true` toma la IPv6 del prefijo que anuncia el laboratorio (`2001:db8:a:c::/64`) aunque kit01 reenvíe IPv6 |
+| `enp170s0` (MAC `78:55:36:09:07:0b`, rol `wan0`) | Uplink del laboratorio | `192.168.160.69/24` fija, gateway `192.168.160.1`, DNS `192.168.215.20` y `.30`. Con `accept-ra: false` ignora los RA del uplink y no toma dirección del prefijo que anuncia el laboratorio (`2001:db8:a:c::/64`), porque el IPv6 del kit es solo interno (D-12, S-04, 8.3) |
 | `enp171s0` (MAC `78:55:36:09:07:0a`, rol `lan0`) | Trunk hacia ether1 de sw01 | Sin dirección propia |
 | `lan0.10` (VLAN 10 sobre `enp171s0`) | Red Interna y gestión | `10.20.10.1/24`, `fd5a:fc7e:d716:10::1/64`, `fe80::1/64` |
 | `lan0.40` (VLAN 40 sobre `enp171s0`) | Puerto de `br-com` | Sin dirección |
@@ -16,7 +16,7 @@ Los bridges tienen STP apagado y `forward-delay: 0`, y ninguna interfaz interna 
 
 **Por qué `srv-dummy0`.** Un bridge sin puertos queda sin portadora. Sus IPv6 quedan en `tentative`, su ruta en `linkdown` y ningún servicio puede escuchar en ellas (`bind` responde `Cannot assign requested address`). Con la interfaz dummy como puerto, `br-srv` tiene portadora antes de que existan las VMs y BIND9 y Chrony pueden usar `10.20.20.10` y `fd5a:fc7e:d716:20::10`.
 
-**Por qué `accept-ra: true` en `enp170s0`.** systemd-networkd procesa los RA por su cuenta (el `accept_ra` del kernel queda en `0`) y deja de aceptarlos cuando el reenvío IPv6 está activo, salvo que se pida de forma explícita. Un sysctl `accept_ra=2` no tiene efecto con networkd.
+**RA en `enp170s0`.** systemd-networkd procesa los RA por su cuenta (el `accept_ra` del kernel queda en `0`), así que se controlan con `accept-ra` en el netplan y un sysctl `accept_ra` no tiene efecto. `accept-ra: false` deja la WAN sin IPv6 global ni ruta por defecto IPv6, como pide la sección 8.3.
 
 ## Cómo se aplica
 
@@ -40,10 +40,10 @@ Para revisar lo que se va a generar sin tocar `/etc` ni `/run` se usa `netplan g
 
 | Comando | Resultado esperado |
 |---|---|
-| `ip -br addr` | Las direcciones de la tabla en `lan0.10`, `br-com` y `br-srv`; `enp170s0` con `192.168.160.69/24` y su IPv6 del laboratorio |
+| `ip -br addr` | Las direcciones de la tabla en `lan0.10`, `br-com` y `br-srv`; `enp170s0` con `192.168.160.69/24` y solo su link-local IPv6 |
 | `ip -6 addr \| grep -c tentative` | `0` |
 | `bridge link` | `lan0.40` en `br-com` y `srv-dummy0` en `br-srv`, los dos en `forwarding` |
-| `ip -6 route show default dev enp170s0` | `default via fe80::... proto ra`; el valor de `expires` vuelve a subir con cada RA |
+| `ip -6 route show dev enp170s0` | Solo `fe80::/64`, sin ruta por defecto IPv6 |
 | `ping 10.20.10.2` y `ping -6 fd5a:fc7e:d716:10::2` | sw01 responde |
 | `/interface bridge host print where vid=40` en sw01 | La MAC de `br-com` aprendida en `ether1-kit01` |
 | `sudo netbird status` | `Management` y `Signal` en `Connected` |
@@ -51,7 +51,7 @@ Para revisar lo que se va a generar sin tocar `/etc` ni `/run` se usa `netplan g
 ## Diagnóstico
 
 - **Las IPv6 de `br-srv` aparecen en `tentative`.** `srv-dummy0` no está en el bridge; revisar `bridge link` y `networkctl status srv-dummy0`.
-- **`enp170s0` pierde su IPv6 del laboratorio.** Falta `IPv6AcceptRA=yes` en `/run/systemd/network/10-netplan-enp170s0.network`, es decir, `accept-ra: true` en el netplan.
+- **`enp170s0` toma una IPv6 del uplink.** Falta `IPv6AcceptRA=no` en `/run/systemd/network/10-netplan-enp170s0.network`, es decir, `accept-ra: false` en el netplan.
 - **sw01 no aprende la MAC de `br-com`.** Revisar que ether1 lleve la VLAN 40 etiquetada (`/interface bridge vlan print`) y que `lan0.40` esté en `br-com`.
 
 ## Pendiente
