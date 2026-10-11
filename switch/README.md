@@ -22,7 +22,7 @@ ether2 es híbrido porque la gestión del AP responde sin etiqueta (S-03).
 - Gestión en `vlan10-Interna` sobre el bridge, con `10.20.10.2/24` y `fd5a:fc7e:d716:10::2/64`; ruta por defecto IPv4 a `10.20.10.1` e IPv6 a `fe80::1%vlan10-Interna`.
 - Reenvío IPv4 e IPv6 desactivado; sin aceptar RA.
 - Servicios telnet, FTP, web y API apagados; SSH y Winbox solo desde `10.20.10.1` y las IPs de administración `10.20.10.10-29`.
-- Nombre `sw01`, zona horaria `America/Bogota`.
+- Nombre `sw01`, zona horaria `America/Bogota` y cliente NTP de `10.20.20.10` (`ntp.salud.movil`, Chrony en kit01); `/system ntp client print` debe decir `synchronized`.
 - Usuario `admin`, que es el usuario compartido del grupo (D-18). Su contraseña se mantiene por alcance académico (R-14) y no se escribe en el repositorio.
 
 Se aplicó por la consola serial (RJ45, 115200 8N1) en el orden de la guía. Primero los nombres y los puertos deshabilitados, luego bridge y VLAN con el filtrado apagado, gestión movida al bridge, servicios y, al final, el filtrado de VLAN.
@@ -46,7 +46,6 @@ En sw01: `/interface bridge port print`, `/interface bridge vlan print`, `/ip se
 ## Pendiente
 
 - DHCP snooping y filtro de RA (`network#11`).
-- Hora. El reloj está en 1970 hasta que exista `ntp.salud.movil`.
 
 ## Restaurar
 
