@@ -60,5 +60,7 @@
 /ipv6 address add address=fd5a:fc7e:d716:10::2 advertise=no interface=vlan10-Interna
 /system clock set time-zone-name=America/Bogota
 /system identity set name=sw01
+/system ntp client set enabled=yes
+/system ntp client servers add address=10.20.20.10
 /system note set show-at-login=no
 /system routerboard settings set enter-setup-on=delete-key
