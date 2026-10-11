@@ -1,4 +1,4 @@
-# Salida de 'nft -s list table inet filtro' y 'nft -s list table ip nat_kit' en kit01 (2026-10-10, con F-17 y el DNS temporal de las VMs).
+# Salida de 'nft -s list table inet filtro' y 'nft -s list table ip nat_kit' en kit01 (2026-10-10, sin el DNS temporal de las VMs).
 # Las tablas ip filter, ip nat, ip mangle, ip raw e ip6 * son de iptables-nft (NetBird y libvirt) y no se versionan.
 table inet filtro {
 	chain input {
@@ -34,7 +34,6 @@ table inet filtro {
 		icmpv6 type { destination-unreachable, packet-too-big, time-exceeded, parameter-problem } counter accept
 		iifname "lan0.10" oifname "enp170s0" meta nfproto ipv4 counter accept
 		iifname "br-srv" oifname "enp170s0" ip saddr { 10.20.20.11, 10.20.20.12 } tcp dport { 80, 443 } counter accept
-		iifname "br-srv" oifname "enp170s0" ip saddr { 10.20.20.11, 10.20.20.12 } meta l4proto { tcp, udp } th dport 53 counter accept
 		limit rate 10/second burst 50 packets log prefix "fw-drop " level info
 		counter
 	}
