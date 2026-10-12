@@ -1,0 +1,5 @@
+---
+- name: Reiniciar radvd
+  ansible.builtin.systemd_service:
+    name: radvd
+    state: restarted

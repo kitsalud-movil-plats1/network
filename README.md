@@ -7,8 +7,8 @@ Configuración de red del kit, con **kit01** como router/firewall (host Ubuntu),
 | `kit01/netplan/` | Interfaces `enp170s0` (rol `wan0`, uplink, que ignora los RA) y `enp171s0` (rol `lan0`, trunk) con `lan0.10` (Interna), el bridge `br-com` (Comunidad, con `lan0.40` y la VM `prueba01` como puertos) y el bridge `br-srv` (red de servidores, con el puerto dummy `srv-dummy0`). Nombres del kernel, sin renombrar; `fe80::1` en cada interfaz interna |
 | `kit01/sysctl/` | Reenvío IPv4 e IPv6 de kit01 |
 | `kit01/nftables/` | Tabla `inet filtro` con las zonas y las reglas v4/v6, y NAT IPv4 en la tabla aparte `ip nat_kit`, sin tocar las tablas de iptables-nft de NetBird y libvirt; más adelante, filtrado entre VMs (familia `bridge`) |
-| `kit01/kea/` | Kea DHCPv4 solo en `lan0.10` y `br-com` (pools, opciones y reservas por MAC desde el inventario); DHCPv6 sin estado más adelante (network#6). Rol en `ansible/roles/kea_dhcp4/` |
-| `kit01/radvd/` | RA con SLAAC, M=0 y O=1, sin RDNSS |
+| `kit01/kea/` | Kea DHCPv4 y DHCPv6 sin estado, solo en `lan0.10` y `br-com` (pools, opciones y reservas por MAC desde el inventario). Roles en `ansible/roles/kea_dhcp4/` y `ansible/roles/kea_dhcp6/` |
+| `kit01/radvd/` | RA desde `fe80::1` en `lan0.10` y `br-com` con SLAAC, M=0 y O=1, sin RDNSS. Rol en `ansible/roles/radvd/` |
 | `kit01/portal/` | Portal cautivo con la página de aceptación (nginx), el script que autoriza la MAC en nftables y respuestas para la detección de portal sin Internet |
 | `switch/` | Configuración de RouterOS de sw01 exportada con `/export`, con el bridge `bridge-kit` y VLAN filtering, puertos ether1-ether8 (chip `switch1`), VLAN 10, 40 y 20 (solo con el +1 equipo), gestión en `vlan10-Interna`, reenvío IP desactivado, DHCP snooping y servicios limitados |
 | `ap/` | Configuración del AP en modo Multi-SSID, con `SaludMovil-Clinica` en la VLAN 10, `SaludMovil-Comunidad` en la VLAN 40, AP Isolation, WPS desactivado; respaldo de la configuración sin contraseñas |

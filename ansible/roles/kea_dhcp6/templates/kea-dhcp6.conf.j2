@@ -1,0 +1,26 @@
+{# {{ ansible_managed }} (rol kea_dhcp6, D-20, sección 8.2) #}
+{% set subredes = [] %}
+{% for r in kea_dhcp6_redes %}
+{%   set _ = subredes.append({"id": redes[r].vlan, "subnet": redes[r].ipv6, "interface": redes[r].interfaz}) %}
+{% endfor %}
+{{ {
+  "Dhcp6": {
+    "interfaces-config": {
+      "interfaces": kea_dhcp6_redes | map('extract', redes, 'interfaz') | list,
+      "service-sockets-max-retries": 12,
+      "service-sockets-retry-wait-time": 5000
+    },
+    "lease-database": {"type": "memfile", "persist": true, "lfc-interval": 3600},
+    "option-data": [
+      {"name": "dns-servers", "data": servicios_kit01.ipv6},
+      {"name": "domain-search", "data": dominio},
+      {"name": "sntp-servers", "data": servicios_kit01.ipv6, "always-send": true}
+    ],
+    "subnet6": subredes,
+    "loggers": [{
+      "name": "kea-dhcp6",
+      "output_options": [{"output": "stdout", "pattern": "%-5p [%c] %m\n"}],
+      "severity": "INFO"
+    }]
+  }
+} | to_nice_json(indent=2) }}

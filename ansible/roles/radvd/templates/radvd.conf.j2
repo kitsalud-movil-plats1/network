@@ -1,0 +1,18 @@
+# {{ ansible_managed }} (rol radvd, D-20, secciones 8.2 y 8.3)
+# SLAAC (A=1) + DHCPv6 sin estado (M=0, O=1), sin RDNSS, desde fe80::1
+{% for r in radvd_redes %}
+interface {{ redes[r].interfaz }}
+{
+	AdvSendAdvert on;
+	AdvManagedFlag off;
+	AdvOtherConfigFlag on;
+	AdvRASrcAddress { {{ gw_link_local }}; };
+
+	prefix {{ redes[r].ipv6 }}
+	{
+		AdvOnLink on;
+		AdvAutonomous on;
+	};
+};
+
+{% endfor %}

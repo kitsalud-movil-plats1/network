@@ -1,6 +1,6 @@
 ---
 # Kea DHCPv4 de Ubuntu 24.04 con versión fija (AGENTS.md, sección 5)
-kea_version: 2.4.1-3ubuntu0.2
+kea_version: "{{ version_kea }}"
 # Redes de red.yml donde Kea reparte direcciones. Nunca la WAN.
 kea_dhcp4_redes: [interna, comunidad]
 # Las reservas (dhcp_reservas) son estaciones de administración de la Interna

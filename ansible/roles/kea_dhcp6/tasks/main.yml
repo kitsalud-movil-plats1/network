@@ -1,0 +1,59 @@
+---
+- name: Paquetes instalados
+  ansible.builtin.package_facts:
+
+# Con la configuración de fábrica no reparte en ninguna interfaz, pero igual se
+# instala sin arrancar y arranca solo con la configuración del kit
+- name: Impedir que el paquete arranque Kea al instalarse
+  ansible.builtin.copy:
+    dest: /usr/sbin/policy-rc.d
+    content: "#!/bin/sh\nexit 101\n"
+    mode: "0755"
+    force: false
+  register: kea6_policy
+  when: "'kea-dhcp6-server' not in ansible_facts.packages"
+
+- name: Kea DHCPv6 con versión fija
+  when: >-
+    'kea-dhcp6-server' not in ansible_facts.packages or
+    ansible_facts.packages['kea-dhcp6-server'][0].version != kea_version
+  block:
+    - name: Paquete kea-dhcp6-server
+      ansible.builtin.apt:
+        name:
+          - "kea-dhcp6-server={{ kea_version }}"
+          - "kea-common={{ kea_version }}"
+        state: present
+        update_cache: true
+        cache_valid_time: 3600
+  always:
+    - name: Quitar el bloqueo de arranque
+      ansible.builtin.file:
+        path: /usr/sbin/policy-rc.d
+        state: absent
+      when: kea6_policy is changed
+
+- name: Retener los paquetes de Kea
+  ansible.builtin.dpkg_selections:
+    name: "{{ item }}"
+    selection: hold
+  loop: [kea-dhcp6-server, kea-common]
+
+# AppArmor solo deja leer a kea-dhcp6 en /etc/kea/, así que se valida una copia ahí
+- name: Configuración (validada con kea-dhcp6 -t)
+  ansible.builtin.template:
+    src: kea-dhcp6.conf.j2
+    dest: /etc/kea/kea-dhcp6.conf
+    owner: root
+    group: _kea
+    mode: "0640"
+    validate: >-
+      sh -c 'install -m 0640 -g _kea %s /etc/kea/.validar-dhcp6.conf &&
+      kea-dhcp6 -t /etc/kea/.validar-dhcp6.conf; r=$?; rm -f /etc/kea/.validar-dhcp6.conf; exit $r'
+  notify: Reiniciar Kea DHCPv6
+
+- name: Kea DHCPv6 activo al arrancar
+  ansible.builtin.systemd_service:
+    name: kea-dhcp6-server
+    enabled: true
+    state: started
