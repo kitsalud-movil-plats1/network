@@ -1,0 +1,4 @@
+---
+kea_version: "{{ version_kea }}"
+# DHCPv6 sin estado (D-20): solo opciones, sin pools. Nunca la WAN.
+kea_dhcp6_redes: [interna, comunidad]

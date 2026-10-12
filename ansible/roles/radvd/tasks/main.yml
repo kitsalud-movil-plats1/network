@@ -1,0 +1,51 @@
+---
+- name: Paquetes instalados
+  ansible.builtin.package_facts:
+
+- name: radvd con versión fija
+  when: >-
+    'radvd' not in ansible_facts.packages or
+    ansible_facts.packages['radvd'][0].version != radvd_version
+  block:
+    # Sin configuración no anuncia nada, pero arranca recién con la del kit
+    - name: Impedir que el paquete arranque radvd al instalarse
+      ansible.builtin.copy:
+        dest: /usr/sbin/policy-rc.d
+        content: "#!/bin/sh\nexit 101\n"
+        mode: "0755"
+        force: false
+      register: radvd_policy
+
+    - name: Paquete radvd
+      ansible.builtin.apt:
+        name: "radvd={{ radvd_version }}"
+        state: present
+        update_cache: true
+        cache_valid_time: 3600
+  always:
+    - name: Quitar el bloqueo de arranque
+      ansible.builtin.file:
+        path: /usr/sbin/policy-rc.d
+        state: absent
+      when: radvd_policy is changed
+
+- name: Retener radvd
+  ansible.builtin.dpkg_selections:
+    name: radvd
+    selection: hold
+
+- name: Configuración (validada con radvd -c)
+  ansible.builtin.template:
+    src: radvd.conf.j2
+    dest: /etc/radvd.conf
+    owner: root
+    group: root
+    mode: "0644"
+    validate: radvd -c -C %s
+  notify: Reiniciar radvd
+
+- name: radvd activo al arrancar
+  ansible.builtin.systemd_service:
+    name: radvd
+    enabled: true
+    state: started

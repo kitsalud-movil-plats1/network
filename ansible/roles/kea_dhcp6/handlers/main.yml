@@ -1,0 +1,5 @@
+---
+- name: Reiniciar Kea DHCPv6
+  ansible.builtin.systemd_service:
+    name: kea-dhcp6-server
+    state: restarted

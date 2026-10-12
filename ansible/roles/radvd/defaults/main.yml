@@ -1,0 +1,4 @@
+---
+radvd_version: "{{ version_radvd }}"
+# Redes de red.yml con RA (D-20). Nunca la WAN ni br-srv (servidores estáticos).
+radvd_redes: [interna, comunidad]
