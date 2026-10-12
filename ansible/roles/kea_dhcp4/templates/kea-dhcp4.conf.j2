@@ -1,0 +1,45 @@
+{# {{ ansible_managed }} (rol kea_dhcp4, R1, sección 7.1) #}
+{% set subredes = [] %}
+{% for r in kea_dhcp4_redes %}
+{%   set red = redes[r] %}
+{%   set subred = {
+       "id": red.vlan,
+       "subnet": red.ipv4,
+       "interface": red.interfaz,
+       "pools": [{"pool": red.pool4}],
+       "valid-lifetime": red.prestamo4,
+       "option-data": [{"name": "routers", "data": red.gw4}],
+       "reservations": []
+     } %}
+{%   set _ = subredes.append(subred) %}
+{% endfor %}
+{% set reservas = [] %}
+{% for x in dhcp_reservas %}
+{%   set _ = reservas.append({"hw-address": x.mac, "ip-address": x.ipv4, "hostname": x.nombre}) %}
+{% endfor %}
+{% for s in subredes %}
+{%   if s.interface == redes[kea_dhcp4_red_reservas].interfaz %}{% set _ = s.update({"reservations": reservas}) %}{% endif %}
+{% endfor %}
+{{ {
+  "Dhcp4": {
+    "interfaces-config": {
+      "interfaces": kea_dhcp4_redes | map('extract', redes, 'interfaz') | list,
+      "dhcp-socket-type": "raw",
+      "service-sockets-max-retries": 12,
+      "service-sockets-retry-wait-time": 5000
+    },
+    "lease-database": {"type": "memfile", "persist": true, "lfc-interval": 3600},
+    "option-data": [
+      {"name": "domain-name-servers", "data": servicios_kit01.ipv4},
+      {"name": "domain-name", "data": dominio},
+      {"name": "domain-search", "data": dominio},
+      {"name": "ntp-servers", "data": servicios_kit01.ipv4}
+    ],
+    "subnet4": subredes,
+    "loggers": [{
+      "name": "kea-dhcp4",
+      "output_options": [{"output": "stdout", "pattern": "%-5p [%c] %m\n"}],
+      "severity": "INFO"
+    }]
+  }
+} | to_nice_json(indent=2) }}
