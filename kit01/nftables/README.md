@@ -34,7 +34,7 @@ Un paquete tiene que pasar todas las cadenas del mismo gancho, las de iptables-n
 | F-01, F-21 | Admin (`10.20.10.10-29` en la Interna) y `wt0` | SSH (22) y monitoreo (443) |
 | - | `enp170s0` | WireGuard de NetBird (`udp/51820`) |
 
-**Reenvío (`forward`, política drop).** Conexiones establecidas, errores ICMPv6 en tránsito (F-19), la Interna hacia `enp170s0` solo por IPv4 (F-24) y las VMs (`10.20.20.11` y `.12`) hacia `enp170s0` por 80 y 443, solo IPv4 (F-17), todo con masquerade de `10.20.0.0/16` en `ip nat_kit`. Las VMs resuelven por BIND9 en kit01 (`10.20.20.10`), así que no necesitan salir por el 53. Los demás flujos de la sección 11 se agregan en la matriz de flujos (network#10) y el portal en network#8.
+**Reenvío (`forward`, política drop).** Conexiones establecidas, errores ICMPv6 en tránsito (F-19), la Interna hacia `enp170s0` solo por IPv4 (F-24) y las VMs (`10.20.20.11` y `.12`) hacia `enp170s0` por 80 y 443, solo IPv4 (F-17), todo con masquerade de `10.20.0.0/16` en `ip nat_kit`. La Interna llega a los recursos SMB de clinica01 (`10.20.20.11` y `fd5a:fc7e:d716:20::11`, `tcp/445`, F-05); el 443 de F-05 se abre con DHIS2. Las VMs resuelven por BIND9 en kit01 (`10.20.20.10`), así que no necesitan salir por el 53. Los demás flujos de la sección 11 se agregan en la matriz de flujos (network#10) y el portal en network#8.
 
 **Salida de kit01 (`output`).** Sin filtrar en esta base. La restricción de F-18 va en la matriz de flujos.
 
@@ -72,6 +72,8 @@ sudo systemctl enable --now nftables
 | Desde una IP no admin de la Interna (por ejemplo sw01), SSH a `10.20.10.1` y a `fd5a:fc7e:d716:10::1` | Sin respuesta |
 | `sudo journalctl -k \| grep fw-drop` | Las líneas del intento anterior, con `IN=lan0.10` y `DPT=22` en las dos familias |
 | Desde sw01, `/ping 1.1.1.1` | Responde (sale por NAT) |
+| Desde sw01, `/tool fetch url="http://10.20.20.11:445/" keep-result=no` y con `http://[fd5a:fc7e:d716:20::11]:445/` | Pasa de `connecting` a `requesting` (la conexión TCP se abre; falla después porque smbd no habla HTTP) y sube el contador de la regla del 445 en `forward` |
+| Desde la Comunidad (`prueba01`), `nc -zv -w4 10.20.20.11 445` y con `fd5a:fc7e:d716:20::11` | `timed out` y `fw-drop IN=br-com OUT=br-srv ... DPT=445` en el log |
 | `sudo nft list table ip nat_kit` | El contador del masquerade sube |
 | `systemctl restart nftables` y luego `nft list tables` | Las mismas tablas; las de iptables-nft no se tocan |
 
