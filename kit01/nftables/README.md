@@ -34,7 +34,7 @@ Un paquete tiene que pasar todas las cadenas del mismo gancho, las de iptables-n
 | F-01, F-21 | Admin (`10.20.10.10-29` en la Interna) y `wt0` | SSH (22) y monitoreo (443) |
 | - | `enp170s0` | WireGuard de NetBird (`udp/51820`) |
 
-**Reenvío (`forward`, política drop).** Conexiones establecidas, errores ICMPv6 en tránsito (F-19), la Interna hacia `enp170s0` solo por IPv4 (F-24) y las VMs (`10.20.20.11` y `.12`) hacia `enp170s0` por 80 y 443, solo IPv4 (F-17), todo con masquerade de `10.20.0.0/16` en `ip nat_kit`. La Interna llega a DHIS2 y a los recursos SMB de clinica01 (`10.20.20.11` y `fd5a:fc7e:d716:20::11`, `tcp/443` y `tcp/445`, F-05). También llega al 80 de comunidad01 (`10.20.20.12` y `fd5a:fc7e:d716:20::12`, F-07), para la biblioteca; el 443 de F-07 se abre con TLS y la Comunidad llega con el portal (F-09, network#8). Las VMs resuelven por BIND9 en kit01 (`10.20.20.10`), así que no necesitan salir por el 53. Los demás flujos de la sección 11 se agregan en la matriz de flujos (network#10) y el portal en network#8.
+**Reenvío (`forward`, política drop).** Conexiones establecidas, errores ICMPv6 en tránsito (F-19), la Interna hacia `enp170s0` solo por IPv4 (F-24) y las VMs (`10.20.20.11` y `.12`) hacia `enp170s0` por 80 y 443, solo IPv4 (F-17), todo con masquerade de `10.20.0.0/16` en `ip nat_kit`. La Interna llega a DHIS2 y a los recursos SMB de clinica01 (`10.20.20.11` y `fd5a:fc7e:d716:20::11`, `tcp/443` y `tcp/445`, F-05). También llega al 80 y al 443 de comunidad01 (`10.20.20.12` y `fd5a:fc7e:d716:20::12`, F-07), para la biblioteca, los videos y el registro; la Comunidad llega con el portal (F-09, network#8). Las VMs resuelven por BIND9 en kit01 (`10.20.20.10`), así que no necesitan salir por el 53. Los demás flujos de la sección 11 se agregan en la matriz de flujos (network#10) y el portal en network#8.
 
 **Salida de kit01 (`output`).** Sin filtrar en esta base. La restricción de F-18 va en la matriz de flujos.
 
@@ -76,7 +76,8 @@ sudo systemctl enable --now nftables
 | Desde sw01, `/tool fetch url="https://10.20.20.11/dhis-web-login/" http-header-field="Host: pacientes.salud.movil" check-certificate=no output=user` y con `[fd5a:fc7e:d716:20::11]` | `status: finished` con el login de DHIS2 |
 | Desde la Comunidad (`prueba01`), `nc -zv -w4 10.20.20.11 445` (y `443`) y con `fd5a:fc7e:d716:20::11` | `timed out` y `fw-drop IN=br-com OUT=br-srv ... DPT=445` (o `443`) en el log (P3) |
 | Desde sw01, `/tool fetch url="http://10.20.20.12/" http-header-field="Host: biblioteca.salud.movil" output=user` y con `http://[fd5a:fc7e:d716:20::12]/` | `status: finished` con la página de Kiwix |
-| Desde la Comunidad (`prueba01`), `nc -zv -w4 10.20.20.12 80` y con `fd5a:fc7e:d716:20::12` | `timed out` hasta que exista el portal (network#8) |
+| Desde sw01, `/tool fetch url="https://10.20.20.12/" http-header-field="Host: registro.salud.movil" check-certificate=no output=user` y con `[fd5a:fc7e:d716:20::12]` | `status: finished` con el formulario de prerregistro |
+| Desde la Comunidad (`prueba01`), `nc -zv -w4 10.20.20.12 80` (y `443`) y con `fd5a:fc7e:d716:20::12` | `timed out` hasta que exista el portal (network#8) |
 | `sudo nft list table ip nat_kit` | El contador del masquerade sube |
 | `systemctl restart nftables` y luego `nft list tables` | Las mismas tablas; las de iptables-nft no se tocan |
 
