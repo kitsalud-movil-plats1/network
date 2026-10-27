@@ -1,4 +1,4 @@
-# 1970-01-01 20:18:30 by RouterOS 7.13.5
+# 2026-10-27 14:38:48 by RouterOS 7.13.5
 # software id = WDCW-PNZP
 #
 # model = CCR2004-16G-2S+
@@ -34,6 +34,7 @@
 /interface ethernet switch port-isolation set 17 !forwarding-override
 /port set 0 name=serial0
 /port set 1 name=serial1
+/system logging action set 3 bsd-syslog=yes remote=10.20.20.10
 /interface bridge port add bridge=bridge-kit frame-types=admit-only-vlan-tagged interface=ether1-kit01
 /interface bridge port add bridge=bridge-kit interface=ether2-ap01 pvid=10
 /interface bridge port add bridge=bridge-kit frame-types=admit-only-vlan-tagged interface=ether3-laptop
@@ -60,7 +61,11 @@
 /ipv6 address add address=fd5a:fc7e:d716:10::2 advertise=no interface=vlan10-Interna
 /system clock set time-zone-name=America/Bogota
 /system identity set name=sw01
+/system logging add action=remote topics=info
+/system logging add action=remote topics=warning
+/system logging add action=remote topics=error
+/system logging add action=remote topics=critical
+/system note set show-at-login=no
 /system ntp client set enabled=yes
 /system ntp client servers add address=10.20.20.10
-/system note set show-at-login=no
 /system routerboard settings set enter-setup-on=delete-key
