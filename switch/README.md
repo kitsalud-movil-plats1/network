@@ -23,6 +23,7 @@ ether2 es híbrido porque la gestión del AP responde sin etiqueta (S-03).
 - Reenvío IPv4 e IPv6 desactivado; sin aceptar RA.
 - Servicios telnet, FTP, web y API apagados; SSH y Winbox solo desde `10.20.10.1` y las IPs de administración `10.20.10.10-29`.
 - Nombre `sw01`, zona horaria `America/Bogota` y cliente NTP de `10.20.20.10` (`ntp.salud.movil`, Chrony en kit01); `/system ntp client print` debe decir `synchronized`.
+- Syslog hacia kit01 (F-16, observability#3). La acción `remote` envía a `10.20.20.10:514` por UDP en formato BSD (`bsd-syslog=yes`), con los temas `info`, `warning`, `error` y `critical`, además de la memoria. Los mensajes quedan en `/var/log/kitsalud/sw01/syslog.log` de kit01. Se aplicó por SSH a través de kit01 en Safe Mode.
 - Usuario `admin`, que es el usuario compartido del grupo (D-18). Su contraseña se mantiene por alcance académico (R-14) y no se escribe en el repositorio.
 
 Se aplicó por la consola serial (RJ45, 115200 8N1) en el orden de la guía. Primero los nombres y los puertos deshabilitados, luego bridge y VLAN con el filtrado apagado, gestión movida al bridge, servicios y, al final, el filtrado de VLAN.
@@ -40,6 +41,8 @@ $ nc -zv 10.20.10.2 22
 Connection to 10.20.10.2 22 port [tcp/ssh] succeeded!
 $ ssh admin@10.20.10.2 '/ip settings print'   # ip-forward: no
 ```
+
+Syslog: después de entrar a sw01, `sudo tail /var/log/kitsalud/sw01/syslog.log` en kit01 muestra `user admin logged in from 10.20.10.1 via ssh`. En sw01, `/system logging action print detail where name=remote` y `/system logging print`.
 
 En sw01: `/interface bridge port print`, `/interface bridge vlan print`, `/ip settings print` (`ip-forward: no`), `/ipv6 settings print` (`forward: no`), `/ip address print` (solo la gestión).
 

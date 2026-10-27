@@ -31,6 +31,8 @@ Un paquete tiene que pasar todas las cadenas del mismo gancho, las de iptables-n
 | F-23 | Comunidad y Servidores (`br-srv`) | Eco ICMP solo hacia su gateway (`10.20.40.1`, `fd5a:fc7e:d716:40::1`; `10.20.20.1`, `fd5a:fc7e:d716:20::1`; y `fe80::1`) |
 | F-04 | Interna y Comunidad | DHCPv4 (`udp/67`) y DHCPv6 (`udp/547` desde `fe80::/10`) |
 | F-03 | Interna, Comunidad y `br-srv` | DNS (`53` tcp/udp) y NTP (`udp/123`) hacia `10.20.20.10` y `fd5a:fc7e:d716:20::10` |
+| F-15 | clinica01 y comunidad01 (`10.20.20.11`, `.12` y sus `::11`, `::12`) por `br-srv` | rsyslog (`tcp/514`) hacia `10.20.20.10` y `fd5a:fc7e:d716:20::10` |
+| F-16 | sw01 (`10.20.10.2` y `fd5a:fc7e:d716:10::2`) por la Interna | rsyslog (`udp/514`) hacia `10.20.20.10` y `fd5a:fc7e:d716:20::10` |
 | F-01, F-21 | Admin (`10.20.10.10-29` en la Interna) y `wt0` | SSH (22) y monitoreo (443) |
 | - | `enp170s0` | WireGuard de NetBird (`udp/51820`) |
 
@@ -78,6 +80,7 @@ sudo systemctl enable --now nftables
 | Desde sw01, `/tool fetch url="http://10.20.20.12/" http-header-field="Host: biblioteca.salud.movil" output=user` y con `http://[fd5a:fc7e:d716:20::12]/` | `status: finished` con la página de Kiwix |
 | Desde sw01, `/tool fetch url="https://10.20.20.12/" http-header-field="Host: registro.salud.movil" check-certificate=no output=user` y con `[fd5a:fc7e:d716:20::12]` | `status: finished` con el formulario de prerregistro |
 | Desde la Comunidad (`prueba01`), `nc -zv -w4 10.20.20.12 80` (y `443`) y con `fd5a:fc7e:d716:20::12` | `timed out` hasta que exista el portal (network#8) |
+| `sudo nft list chain inet filtro input \| grep 'dport 514'` | Los contadores de F-15 y F-16 suben con el reenvío de las VMs y los mensajes de sw01 (`observability/rsyslog/`) |
 | `sudo nft list table ip nat_kit` | El contador del masquerade sube |
 | `systemctl restart nftables` y luego `nft list tables` | Las mismas tablas; las de iptables-nft no se tocan |
 
