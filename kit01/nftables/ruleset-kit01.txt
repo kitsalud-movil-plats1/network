@@ -1,4 +1,4 @@
-# Salida de 'nft -s list table inet filtro' y 'nft -s list table ip nat_kit' en kit01 (2026-10-25, con F-05 y F-07 completos).
+# Salida de 'nft -s list table inet filtro' y 'nft -s list table ip nat_kit' en kit01 (2026-10-27, con F-15 y F-16).
 # Las tablas ip filter, ip nat, ip mangle, ip raw e ip6 * son de iptables-nft (NetBird y libvirt) y no se versionan.
 table inet filtro {
 	chain input {
@@ -20,6 +20,10 @@ table inet filtro {
 		iifname { "br-com", "br-srv", "lan0.10" } ip6 daddr fd5a:fc7e:d716:20::10 meta l4proto { tcp, udp } th dport 53 counter accept
 		iifname { "br-com", "br-srv", "lan0.10" } ip daddr 10.20.20.10 udp dport 123 counter accept
 		iifname { "br-com", "br-srv", "lan0.10" } ip6 daddr fd5a:fc7e:d716:20::10 udp dport 123 counter accept
+		iifname "br-srv" ip saddr { 10.20.20.11, 10.20.20.12 } ip daddr 10.20.20.10 tcp dport 514 counter accept
+		iifname "br-srv" ip6 saddr { fd5a:fc7e:d716:20::11, fd5a:fc7e:d716:20::12 } ip6 daddr fd5a:fc7e:d716:20::10 tcp dport 514 counter accept
+		iifname "lan0.10" ip saddr 10.20.10.2 ip daddr 10.20.20.10 udp dport 514 counter accept
+		iifname "lan0.10" ip6 saddr fd5a:fc7e:d716:10::2 ip6 daddr fd5a:fc7e:d716:20::10 udp dport 514 counter accept
 		iifname "lan0.10" ip saddr 10.20.10.10-10.20.10.29 tcp dport { 22, 443 } counter accept
 		iifname "wt0" tcp dport { 22, 443 } counter accept
 		iifname "enp170s0" udp dport 51820 counter accept
