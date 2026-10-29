@@ -1,6 +1,6 @@
 # Netplan de kit01
 
-[`50-cloud-init.yaml`](50-cloud-init.yaml) es el netplan de kit01, en `/etc/netplan/50-cloud-init.yaml` (permisos `600`). cloud-init está desactivado en kit01, así que el archivo no se regenera. Las NIC conservan los nombres del kernel (D-14).
+[`50-cloud-init.yaml.j2`](50-cloud-init.yaml.j2) es la plantilla del netplan de kit01, que queda en `/etc/netplan/50-cloud-init.yaml` (permisos `600`). cloud-init está desactivado en kit01, así que el archivo no se regenera. Las NIC conservan los nombres del kernel (D-14).
 
 | Interfaz | Uso | Direcciones |
 |---|---|---|
@@ -20,19 +20,25 @@ Los bridges tienen STP apagado y `forward-delay: 0`, y ninguna interfaz interna 
 
 ## Cómo se aplica
 
-En remoto se aplica con restauración programada (D-23, `AGENTS.md` sección 6) y sin `netplan apply` ni `netplan try`. Se prueba antes en el laboratorio virtual, con `wan0` y `lan0` en lugar de `enp170s0` y `enp171s0`.
+Con el rol `kit01_red` de [`../../ansible/roles/`](../../ansible/roles/), desde `platform/ansible/` y siempre primero con `--check --diff`.
 
 ```bash
-sudo mkdir -p /root/netplan-anterior
-sudo cp -a /etc/netplan/50-cloud-init.yaml /root/netplan-anterior/
-sudo install -o root -g root -m 600 50-cloud-init.yaml /etc/netplan/50-cloud-init.yaml
-sudo systemd-run --on-active=120 --unit=net-rollback sh -c 'cp /root/netplan-anterior/*.yaml /etc/netplan/ && netplan generate && networkctl reload'
-sudo netplan generate && sudo networkctl reload
-# desde una sesión nueva, si el acceso sigue
-sudo systemctl stop net-rollback.timer
+ansible-playbook playbooks/red-kit01.yml --check --diff   # qué cambiaría en el archivo y si cambiaría la red activa
+ansible-playbook playbooks/red-kit01.yml                  # firewall (kit01_firewall) y red (kit01_red)
 ```
 
-Para revisar lo que se va a generar sin tocar `/etc` ni `/run` se usa `netplan generate --root-dir <directorio>` con el archivo en `<directorio>/etc/netplan/`.
+La plantilla toma las redes de `group_vars/all/red.yml`, los nombres de `iface_wan` e `iface_lan` y la WAN del sitio de `wan` en `host_vars/kit01.yml` (en el laboratorio, DHCP con `match` por MAC). El archivo generado no lleva cabecera, para que sea igual al que se escribió a mano.
+
+El rol nunca usa `netplan apply` ni `netplan try`, y aplica solo cuando hace falta (D-23, `AGENTS.md` sección 6).
+
+1. **Candidato aparte.** Genera el netplan en `/run/kitsalud-red/netplan/etc/netplan/` (tmpfs), junto con los demás archivos de `/etc/netplan`, y ejecuta `netplan generate --root-dir` sobre esa copia, lo que también lo valida. Lo hace también con `--check`.
+2. **Comparación.** Compara lo que genera con `/run/systemd/network` y con las reglas de udev de netplan. Si es igual, la red activa no cambia y no se recarga nada, aunque el archivo cambie (por ejemplo, un comentario).
+3. **Red tocada a mano.** Si el archivo no cambia pero lo activo no sale de él, el rol se detiene sin aplicar, porque ese estado no se podría restaurar.
+4. **Aplicación.** Si hay que aplicar, copia el archivo anterior en `/root/netplan-anterior/` y programa `net-rollback-<época>` a los 120 s (`cp` + `netplan generate` + `networkctl reload`). Después escribe el archivo y ejecuta `netplan generate && networkctl reload`.
+5. **Comprobación.** Cierra la conexión de Ansible y entra con una nueva. Compara la huella de las reglas de NetBird en iptables con la de antes y revisa `netbird status`. Solo si la restauración sigue pendiente la cancela; si ya actuó, falla con un aviso.
+6. **Restauración pendiente.** Si al empezar hay una `net-rollback-*` o una `fw-rollback-*` pendiente, el rol se detiene.
+
+Para revisar a mano lo que se va a generar, sin tocar `/etc` ni `/run`, se usa `netplan generate --root-dir <directorio>` con el archivo en `<directorio>/etc/netplan/`.
 
 `networkctl reload` también reconfigura `enp170s0`, porque netplan reescribe todos los archivos de `/run/systemd/network/`. La dirección y las rutas se mantienen y el acceso por NetBird no se interrumpe (0 % de pérdida en un ping por NetBird durante el reload).
 
@@ -47,8 +53,13 @@ Para revisar lo que se va a generar sin tocar `/etc` ni `/run` se usa `netplan g
 | `ping 10.20.10.2` y `ping -6 fd5a:fc7e:d716:10::2` | sw01 responde |
 | `/interface bridge host print where vid=40` en sw01 | La MAC de `br-com` aprendida en `ether1-kit01` |
 | `sudo netbird status` | `Management` y `Signal` en `Connected` |
+| `ansible-playbook playbooks/red-kit01.yml --check --diff` | `changed=0` |
 
 ## Diagnóstico
+
+- **El rol se detiene con `Lo que hay en /run/systemd/network no coincide`.** Alguien cambió la red sin el netplan, o el archivo de `/etc/netplan` se editó a mano y después se recargó. Se compara con `netplan generate --root-dir` y se decide qué estado vale antes de ejecutar el rol.
+- **El rol falla con `La restauración ... ya actuó`.** El acceso no volvió a tiempo con el cambio y todo quedó como antes. Se revisa el cambio en el laboratorio virtual.
+- **El rol se detiene por una restauración pendiente.** Se espera a que actúe (`systemctl list-timers 'net-rollback-*'`) o, si el acceso funciona, se cancela con `sudo systemctl stop <nombre>.timer`.
 
 - **Las IPv6 de `br-srv` aparecen en `tentative`.** `srv-dummy0` no está en el bridge; revisar `bridge link` y `networkctl status srv-dummy0`.
 - **`enp170s0` toma una IPv6 del uplink.** Falta `IPv6AcceptRA=no` en `/run/systemd/network/10-netplan-enp170s0.network`, es decir, `accept-ra: false` en el netplan.

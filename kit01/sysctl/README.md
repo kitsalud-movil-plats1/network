@@ -2,17 +2,11 @@
 
 [`60-kit01-router.conf`](60-kit01-router.conf) activa el reenvío IPv4 e IPv6, porque kit01 es el router de las redes internas (D-02). Va en `/etc/sysctl.d/60-kit01-router.conf`.
 
-`enp170s0` ignora los RA del uplink (`accept-ra: false` en [`../netplan/`](../netplan/)), así que kit01 no tiene ruta IPv6 hacia la WAN. Hasta que esté el firewall base (network#4), la cadena `FORWARD` no filtra el tráfico que kit01 reenvía.
+`enp170s0` ignora los RA del uplink (`accept-ra: false` en [`../netplan/`](../netplan/)), así que kit01 no tiene ruta IPv6 hacia la WAN. El tráfico que reenvía lo filtra la cadena `forward` de [`../nftables/`](../nftables/).
 
 ## Cómo se aplica
 
-```bash
-sudo systemd-run --on-active=120 --unit=sysctl-rollback sh -c 'rm -f /etc/sysctl.d/60-kit01-router.conf; sysctl -w net.ipv6.conf.all.forwarding=0'
-sudo install -o root -g root -m 644 60-kit01-router.conf /etc/sysctl.d/60-kit01-router.conf
-sudo sysctl -p /etc/sysctl.d/60-kit01-router.conf
-# desde una sesión nueva, si el acceso sigue
-sudo systemctl stop sysctl-rollback.timer
-```
+Con el rol `kit01_red` (`playbooks/red-kit01.yml` en `platform/ansible/`, ver [`../netplan/`](../netplan/)), que copia el archivo tal cual y, si cambió, lo carga con `sysctl --load`. Cargarlo no baja ningún enlace.
 
 ## Cómo se verifica
 
