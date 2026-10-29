@@ -6,30 +6,30 @@
 # borra y se vuelve a crear en la misma transacción, así que el archivo se
 # puede aplicar las veces que haga falta sin tocar las demás.
 
-define if_wan        = "enp170s0"
-define if_interna    = "lan0.10"
-define if_comunidad  = "br-com"
-define if_servidores = "br-srv"
-define if_netbird    = "wt0"
+define if_wan        = "{{ iface_wan }}"
+define if_interna    = "{{ redes.interna.interfaz }}"
+define if_comunidad  = "{{ redes.comunidad.interfaz }}"
+define if_servidores = "{{ redes.servidores.interfaz }}"
+define if_netbird    = "{{ kit01_firewall_if_netbird }}"
 
-define admin4    = 10.20.10.10-10.20.10.29
-define srv4      = 10.20.20.10
-define srv6      = fd5a:fc7e:d716:20::10
-define gw_com4   = 10.20.40.1
-define gw_com6   = fd5a:fc7e:d716:40::1
-define gw_srv4   = 10.20.20.1
-define gw_srv6   = fd5a:fc7e:d716:20::1
-define red_kit4  = 10.20.0.0/16
-define vms4      = { 10.20.20.11, 10.20.20.12 }
-define clinica4  = 10.20.20.11
-define clinica6  = fd5a:fc7e:d716:20::11
-define comunidad4 = 10.20.20.12
-define comunidad6 = fd5a:fc7e:d716:20::12
-define vms6      = { fd5a:fc7e:d716:20::11, fd5a:fc7e:d716:20::12 }
-define sw01_4    = 10.20.10.2
-define sw01_6    = fd5a:fc7e:d716:10::2
-define ula_kit6  = fd5a:fc7e:d716::/48
-define wg_puerto = 51820
+define admin4    = {{ admin_ipv4_rango }}
+define srv4      = {{ servicios_kit01.ipv4 }}
+define srv6      = {{ servicios_kit01.ipv6 }}
+define gw_com4   = {{ redes.comunidad.gw4 }}
+define gw_com6   = {{ redes.comunidad.gw6 }}
+define gw_srv4   = {{ redes.servidores.gw4 }}
+define gw_srv6   = {{ redes.servidores.gw6 }}
+define red_kit4  = {{ red_kit4 }}
+define vms4      = { {{ equipos.clinica01.ipv4 }}, {{ equipos.comunidad01.ipv4 }} }
+define clinica4  = {{ equipos.clinica01.ipv4 }}
+define clinica6  = {{ equipos.clinica01.ipv6 }}
+define comunidad4 = {{ equipos.comunidad01.ipv4 }}
+define comunidad6 = {{ equipos.comunidad01.ipv6 }}
+define vms6      = { {{ equipos.clinica01.ipv6 }}, {{ equipos.comunidad01.ipv6 }} }
+define sw01_4    = {{ equipos.sw01.ipv4 }}
+define sw01_6    = {{ equipos.sw01.ipv6 }}
+define ula_kit6  = {{ ula_kit6 }}
+define wg_puerto = {{ kit01_firewall_wg_puerto }}
 
 table inet filtro
 delete table inet filtro

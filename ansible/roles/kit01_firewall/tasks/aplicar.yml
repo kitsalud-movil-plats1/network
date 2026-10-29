@@ -1,0 +1,96 @@
+---
+# D-23 y AGENTS.md sección 6. Si algo falla desde aquí, el play se detiene en
+# este host y la restauración programada vuelve al ruleset anterior
+- name: Huella de las reglas de NetBird antes de aplicar
+  ansible.builtin.shell: |
+    set -o pipefail
+    { iptables-save; ip6tables-save; } | awk '/NETBIRD/ && !/^:/' | sha256sum
+  args:
+    executable: /bin/bash
+  register: kit01_firewall_netbird_antes
+  changed_when: false
+
+# Lo activo, en un archivo que se puede cargar: cada tabla se declara, se
+# borra y se vuelve a crear. Una tabla que no existía solo se borra
+- name: Ruleset activo para la restauración
+  ansible.builtin.shell: |
+    {
+    {% for t in kit01_firewall_tablas %}
+    echo "table {{ t }}"; echo "delete table {{ t }}"
+    {% endfor %}
+    {% for t in kit01_firewall_tablas %}
+    nft -s list table {{ t }} 2>/dev/null || true
+    {% endfor %}
+    } > {{ kit01_firewall_tmp }}/anterior.nft
+    nft -c -f {{ kit01_firewall_tmp }}/anterior.nft
+  changed_when: false
+
+- name: Nombre de la restauración
+  ansible.builtin.set_fact:
+    kit01_firewall_unidad: "fw-rollback-{{ now(fmt='%s') }}"
+
+- name: Programar la restauración
+  ansible.builtin.command: >-
+    systemd-run --on-active={{ kit01_firewall_restauracion }} --unit={{ kit01_firewall_unidad }}
+    sh -c 'nft -f {{ kit01_firewall_tmp }}/anterior.nft{{ " && cp /etc/nftables.conf.anterior /etc/nftables.conf" if kit01_firewall_archivo is changed else "" }}'
+  changed_when: true
+
+- name: Aplicar el firewall
+  ansible.builtin.command: nft -f /etc/nftables.conf
+  changed_when: true
+
+# Una conexión nueva, no la que ya estaba abierta (ControlPersist)
+- name: Cerrar la conexión de Ansible
+  ansible.builtin.meta: reset_connection
+
+- name: Entrar de nuevo
+  ansible.builtin.wait_for_connection:
+    connect_timeout: 10
+    timeout: 60
+    delay: 2
+
+- name: El ruleset activo es el del archivo
+  ansible.builtin.shell: |
+    candidato=$(unshare --net sh -c 'nft -f /etc/nftables.conf && nft -s list ruleset')
+    activo=$({% for t in kit01_firewall_tablas %}nft -s list table {{ t }} 2>/dev/null; {% endfor %})
+    [ "$candidato" = "$activo" ]
+  args:
+    executable: /bin/bash
+  changed_when: false
+
+- name: Huella de las reglas de NetBird después de aplicar
+  ansible.builtin.shell: |
+    set -o pipefail
+    { iptables-save; ip6tables-save; } | awk '/NETBIRD/ && !/^:/' | sha256sum
+  args:
+    executable: /bin/bash
+  register: kit01_firewall_netbird_despues
+  changed_when: false
+  failed_when: kit01_firewall_netbird_despues.stdout != kit01_firewall_netbird_antes.stdout
+
+- name: NetBird conectado
+  ansible.builtin.command: netbird status
+  register: kit01_firewall_netbird_estado
+  changed_when: false
+  failed_when: kit01_firewall_netbird_estado.stdout is not search('Management:\s+Connected')
+  when: kit01_netbird | bool
+
+# La reconexión puede tardar más que su timeout si la conexión anterior quedó
+# colgada. Solo vale lo comprobado si la restauración no actuó todavía
+- name: ¿La restauración sigue pendiente?
+  ansible.builtin.command: systemctl is-active {{ kit01_firewall_unidad }}.timer
+  register: kit01_firewall_pendiente
+  changed_when: false
+  failed_when: false
+
+- name: La restauración no actuó todavía
+  ansible.builtin.assert:
+    that: kit01_firewall_pendiente.stdout == 'active'
+    fail_msg: >-
+      La restauración {{ kit01_firewall_unidad }} ya actuó, así que el firewall volvió a lo anterior. El acceso tardó
+      más de {{ kit01_firewall_restauracion }} s en volver con el cambio; se revisa antes de repetir
+    quiet: true
+
+- name: Cancelar la restauración
+  ansible.builtin.command: systemctl stop {{ kit01_firewall_unidad }}.timer
+  changed_when: true

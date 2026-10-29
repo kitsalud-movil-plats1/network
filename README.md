@@ -13,4 +13,6 @@ Configuración de red del kit, con **kit01** como router/firewall (host Ubuntu),
 | `switch/` | Configuración de RouterOS de sw01 exportada con `/export`, con el bridge `bridge-kit` y VLAN filtering, puertos ether1-ether8 (chip `switch1`), VLAN 10, 40 y 20 (solo con el +1 equipo), gestión en `vlan10-Interna`, reenvío IP desactivado, DHCP snooping y servicios limitados |
 | `ap/` | Configuración del AP en modo Multi-SSID, con `SaludMovil-Clinica` en la VLAN 10, `SaludMovil-Comunidad` en la VLAN 40, AP Isolation, WPS desactivado; respaldo de la configuración sin contraseñas |
 
+El netplan, el sysctl y el firewall de kit01 se despliegan con los roles `kit01_red` y `kit01_firewall` de `ansible/roles/` (`platform/ansible/playbooks/red-kit01.yml`), que solo recargan la red o el firewall si cambia el resultado efectivo, y entonces con restauración programada (D-23).
+
 El diseño de referencia está en `docs/arquitectura/00-punto-de-partida.md` (secciones 5, 6, 7 y 8).

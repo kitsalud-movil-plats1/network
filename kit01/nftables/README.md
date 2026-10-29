@@ -4,7 +4,7 @@ Firewall base de kit01 (D-02, secciones 6.3, 8.4 y 11 del documento). Una sola t
 
 | Archivo | Dónde va en kit01 | Qué hace |
 |---|---|---|
-| [`nftables.conf`](nftables.conf) | `/etc/nftables.conf` (`755`) | Tablas `inet filtro` e `ip nat_kit`. Los nombres de interfaz y las direcciones están en `define` al principio |
+| [`nftables.conf.j2`](nftables.conf.j2) | `/etc/nftables.conf` (`755`) | Tablas `inet filtro` e `ip nat_kit`. Los nombres de interfaz y las direcciones están en `define` al principio y salen del inventario (`red.yml`, `iface_wan` y `kit01_firewall_if_netbird`) |
 | [`quitar.nft`](quitar.nft) | `/etc/nftables/quitar.nft` | Borra solo las tablas de kit01. Lo usan la restauración programada y el `ExecStop` del servicio |
 | [`nftables.service.d/kit01.conf`](nftables.service.d/kit01.conf) | `/etc/systemd/system/nftables.service.d/kit01.conf` | Cambia el `ExecStop` de Ubuntu (`nft flush ruleset`) por `quitar.nft` |
 | [`ruleset-kit01.txt`](ruleset-kit01.txt) | - | Listado de las dos tablas aplicadas en kit01 (`nft -s list table ...`) |
@@ -46,23 +46,24 @@ El SSH por IPv6 desde la Interna queda bloqueado para todos, porque las estacion
 
 ## Cómo se aplica
 
-Se prueba antes en el laboratorio virtual, cambiando `if_wan` a `wan0` e `if_netbird` a `wan0` (la máquina anfitriona hace de NetBird). En kit01, con restauración programada (D-23, `AGENTS.md` sección 6) y una segunda sesión abierta.
+Con el rol `kit01_firewall` de [`../../ansible/roles/`](../../ansible/roles/), desde `platform/ansible/` y siempre primero con `--check --diff`. El playbook aplica el firewall y después la red ([`../netplan/`](../netplan/)).
 
 ```bash
-sudo mkdir -p /etc/nftables
-sudo install -m 644 quitar.nft /etc/nftables/quitar.nft
-sudo nft -c -f nftables.conf
-sudo systemd-run --on-active=120 --unit=fw-rollback nft -f /etc/nftables/quitar.nft
-sudo nft -f nftables.conf
-# desde una sesión nueva, si el acceso sigue
-sudo systemctl stop fw-rollback.timer
-
-# persistencia
-sudo install -m 755 nftables.conf /etc/nftables.conf
-sudo install -D -m 644 nftables.service.d/kit01.conf /etc/systemd/system/nftables.service.d/kit01.conf
-sudo systemctl daemon-reload
-sudo systemctl enable --now nftables
+ansible-playbook playbooks/red-kit01.yml --check --diff   # qué cambiaría en el archivo y si cambiaría el ruleset activo
+ansible-playbook playbooks/red-kit01.yml
 ```
+
+`quitar.nft` y el drop-in se copian tal cual, y `nftables.service` queda habilitado sin reiniciarlo. En el laboratorio virtual `kit01_firewall_if_netbird` es `wan0`, porque la máquina anfitriona hace de NetBird.
+
+El rol aplica solo cuando cambia el ruleset efectivo (D-23, `AGENTS.md` sección 6).
+
+1. **Candidato aparte.** Genera el archivo en `/run/kitsalud-red/nftables.conf` (tmpfs) y lo valida con `nft -c`. Lo hace también con `--check`.
+2. **Comparación.** Lo carga en un *network namespace* desechable (`unshare --net`) y compara `nft -s list ruleset` con las tablas `inet filtro` e `ip nat_kit` activas. El firewall del host no cambia. Si son iguales, solo se actualiza `/etc/nftables.conf`, sin recargar nada.
+3. **Aplicación.** Si hay que aplicar, guarda el ruleset activo en `/run/kitsalud-red/anterior.nft` (cada tabla se declara, se borra y se vuelve a crear) y la copia del archivo en `/etc/nftables.conf.anterior`. Programa `fw-rollback-<época>` a los 120 s, que carga ese ruleset y devuelve el archivo, y ejecuta `nft -f /etc/nftables.conf`.
+4. **Comprobación.** Cierra la conexión de Ansible y entra con una nueva. Comprueba que el ruleset activo sea el del archivo, que la huella de las reglas de NetBird en iptables no cambie y que `netbird status` siga conectado. Solo si la restauración sigue pendiente la cancela; si ya actuó, falla con un aviso.
+5. **Restauración pendiente.** Si al empezar hay una `fw-rollback-*` o una `net-rollback-*` pendiente, el rol se detiene.
+
+Para comparar a mano un archivo con lo activo sin aplicarlo, se compara `sudo unshare --net sh -c 'nft -f <archivo> && nft -s list ruleset'` con `sudo nft -s list table inet filtro; sudo nft -s list table ip nat_kit`.
 
 ## Cómo se verifica
 
@@ -83,8 +84,12 @@ sudo systemctl enable --now nftables
 | `sudo nft list chain inet filtro input \| grep 'dport 514'` | Los contadores de F-15 y F-16 suben con el reenvío de las VMs y los mensajes de sw01 (`observability/rsyslog/`) |
 | `sudo nft list table ip nat_kit` | El contador del masquerade sube |
 | `systemctl restart nftables` y luego `nft list tables` | Las mismas tablas; las de iptables-nft no se tocan |
+| `ansible-playbook playbooks/red-kit01.yml --check --diff` | `changed=0` |
 
 ## Diagnóstico
+
+- **El rol falla con `La restauración ... ya actuó`.** El acceso no volvió a tiempo con el cambio y el ruleset volvió a lo anterior. Se revisa el cambio en el laboratorio virtual antes de repetir.
+- **El rol se detiene por una restauración pendiente.** Se espera a que actúe (`systemctl list-timers 'fw-rollback-*'`) o, si el acceso funciona, se cancela con `sudo systemctl stop <nombre>.timer`.
 
 - **Algo no responde y no se sabe por qué.** `sudo journalctl -k -f | grep fw-drop` muestra lo que se descarta, con interfaz de entrada y salida, origen, destino y puerto.
 - **Se perdieron las reglas de NetBird.** Alguien aplicó un archivo con `flush ruleset` o corrió `nft flush ruleset`. NetBird crea sus reglas al iniciar, así que se recuperan con `sudo systemctl restart netbird`. Ese reinicio corta NetBird unos segundos, así que conviene hacerlo desde una sesión que no dependa de él.

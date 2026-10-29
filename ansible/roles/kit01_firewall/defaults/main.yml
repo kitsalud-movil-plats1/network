@@ -1,0 +1,18 @@
+---
+# Firewall de kit01 (network#4, network#17, D-02, D-23, sección 6.3). Los
+# archivos están en network/kit01/nftables/
+kit01_firewall_fuente: "{{ role_path }}/../../../kit01/nftables"
+# Interfaz y puerto de NetBird (D-21). En el laboratorio la máquina anfitriona
+# hace de NetBird por wan0 (host_vars)
+kit01_firewall_if_netbird: wt0
+kit01_firewall_wg_puerto: 51820
+# Tablas propias de kit01; las de iptables-nft (NetBird, libvirt) no se tocan
+kit01_firewall_tablas: ["inet filtro", "ip nat_kit"]
+
+# Aplicación con restauración programada (D-23). Si el acceso no vuelve a
+# funcionar desde una conexión nueva, a los segundos indicados se carga el
+# ruleset anterior
+kit01_firewall_restauracion: 120
+kit01_firewall_tmp: /run/kitsalud-red
+# En el laboratorio no hay NetBird
+kit01_netbird: true

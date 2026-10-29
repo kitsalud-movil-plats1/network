@@ -1,0 +1,12 @@
+---
+# Red de kit01 (network#3, network#17, D-14, D-15, D-23, secciones 6.2, 7 y 8):
+# netplan y reenvío. Los archivos están en network/kit01/
+kit01_red_fuente: "{{ role_path }}/../../../kit01"
+kit01_red_netplan: /etc/netplan/50-cloud-init.yaml
+kit01_red_anterior: /root/netplan-anterior
+
+# Aplicación con restauración programada (D-23), igual que kit01_firewall
+kit01_red_restauracion: 120
+kit01_red_tmp: /run/kitsalud-red
+# En el laboratorio no hay NetBird
+kit01_netbird: true
