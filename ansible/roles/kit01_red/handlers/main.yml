@@ -1,0 +1,5 @@
+---
+# Mismos valores que ya están activos salvo que cambie el archivo; no toca los enlaces
+- name: Cargar el reenvío
+  ansible.builtin.command: sysctl --load /etc/sysctl.d/60-kit01-router.conf
+  changed_when: true

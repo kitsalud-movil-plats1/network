@@ -1,0 +1,131 @@
+---
+# Una restauración pendiente desharía lo que esta ejecución diera por bueno
+- name: Restauraciones pendientes
+  ansible.builtin.shell: systemctl list-timers --all --no-legend 'fw-rollback-*' 'net-rollback-*' | awk '{print $(NF-1)}'
+  register: kit01_red_pendientes
+  check_mode: false
+  changed_when: false
+
+- name: Sin restauraciones pendientes
+  ansible.builtin.assert:
+    that: kit01_red_pendientes.stdout | length == 0
+    fail_msg: >-
+      Hay una restauración pendiente ({{ kit01_red_pendientes.stdout_lines | join(', ') }}).
+      Se espera a que termine o, si el acceso funciona, se cancela con systemctl stop y el nombre del timer
+    quiet: true
+
+- name: Reenvío IPv4 e IPv6
+  ansible.builtin.copy:
+    src: "{{ kit01_red_fuente }}/sysctl/60-kit01-router.conf"
+    dest: /etc/sysctl.d/60-kit01-router.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Cargar el reenvío
+
+# El candidato se genera en /run (tmpfs) también con --check, junto con los
+# demás archivos de /etc/netplan, y netplan lo convierte en un root aparte
+- name: Root temporal de netplan
+  ansible.builtin.file:
+    path: "{{ kit01_red_tmp }}/netplan/etc/netplan"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+  check_mode: false
+  changed_when: false
+
+- name: Netplan candidato
+  ansible.builtin.template:
+    src: "{{ kit01_red_fuente }}/netplan/50-cloud-init.yaml.j2"
+    dest: "{{ kit01_red_tmp }}/netplan{{ kit01_red_netplan }}"
+    owner: root
+    group: root
+    mode: "0600"
+  check_mode: false
+  changed_when: false
+
+# netplan generate valida el archivo; se compara lo que genera para
+# systemd-networkd y udev con lo que hay activo en /run
+- name: ¿Lo que genera el candidato es lo activo?
+  ansible.builtin.shell: |
+    set -e
+    r={{ kit01_red_tmp }}/netplan
+    for f in /etc/netplan/*.yaml; do [ "$f" = {{ kit01_red_netplan }} ] || cp "$f" "$r/etc/netplan/"; done
+    rm -rf "$r/run"
+    netplan generate --root-dir "$r"
+    set +e
+    diff -r "$r/run/systemd/network" /run/systemd/network
+    red=$?
+    diff <(cd "$r/run/udev/rules.d" 2>/dev/null && cat *netplan* 2>/dev/null) <(cd /run/udev/rules.d 2>/dev/null && cat *netplan* 2>/dev/null)
+    udev=$?
+    [ $red -eq 0 ] && [ $udev -eq 0 ]
+  args:
+    executable: /bin/bash
+  register: kit01_red_igual
+  check_mode: false
+  changed_when: false
+  failed_when: kit01_red_igual.rc > 1
+
+- name: Netplan actual
+  ansible.builtin.stat:
+    path: "{{ kit01_red_netplan }}"
+    checksum_algorithm: sha256
+  register: kit01_red_actual
+
+- name: Netplan candidato (suma)
+  ansible.builtin.stat:
+    path: "{{ kit01_red_tmp }}/netplan{{ kit01_red_netplan }}"
+    checksum_algorithm: sha256
+  register: kit01_red_candidato
+
+- name: ¿Cambia el archivo?
+  ansible.builtin.set_fact:
+    kit01_red_cambia: "{{ not kit01_red_actual.stat.exists or kit01_red_actual.stat.checksum != kit01_red_candidato.stat.checksum }}"
+
+# Si el archivo no cambia pero lo activo no sale de él, alguien tocó la red a
+# mano. Ese estado no se puede restaurar, así que no se aplica nada
+- name: La red activa sale del netplan actual
+  ansible.builtin.assert:
+    that: kit01_red_cambia or kit01_red_igual.rc == 0
+    fail_msg: >-
+      Lo que hay en /run/systemd/network no coincide con lo que genera {{ kit01_red_netplan }}.
+      Se revisa a mano (netplan generate --root-dir y diff) antes de ejecutar el rol
+    quiet: true
+
+- name: Carpeta de la copia
+  ansible.builtin.file:
+    path: "{{ kit01_red_anterior }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+  when: kit01_red_cambia
+
+- name: Copia del netplan
+  ansible.builtin.copy:
+    src: "{{ kit01_red_netplan }}"
+    dest: "{{ kit01_red_anterior }}/{{ kit01_red_netplan | basename }}"
+    remote_src: true
+    owner: root
+    group: root
+    mode: "0600"
+  when: kit01_red_cambia and kit01_red_actual.stat.exists
+
+- name: Netplan
+  ansible.builtin.template:
+    src: "{{ kit01_red_fuente }}/netplan/50-cloud-init.yaml.j2"
+    dest: "{{ kit01_red_netplan }}"
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Con --check, la red activa cambiaría
+  ansible.builtin.debug:
+    msg: Lo que genera el netplan nuevo es distinto de lo activo; la ejecución real lo aplica con restauración programada
+  when: ansible_check_mode and kit01_red_igual.rc != 0
+  changed_when: true
+
+- name: Aplicar con restauración programada
+  ansible.builtin.include_tasks: aplicar.yml
+  when: not ansible_check_mode and kit01_red_igual.rc != 0
