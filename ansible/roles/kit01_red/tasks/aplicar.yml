@@ -31,6 +31,7 @@
 
 - name: Entrar de nuevo
   ansible.builtin.wait_for_connection:
+    connect_timeout: 10
     timeout: 60
     delay: 5
 
@@ -50,6 +51,22 @@
   changed_when: false
   failed_when: kit01_red_netbird_estado.stdout is not search('Management:\s+Connected')
   when: kit01_netbird | bool
+
+# La reconexión puede tardar más que su timeout si la conexión anterior quedó
+# colgada. Solo vale lo comprobado si la restauración no actuó todavía
+- name: ¿La restauración sigue pendiente?
+  ansible.builtin.command: systemctl is-active {{ kit01_red_unidad }}.timer
+  register: kit01_red_pendiente
+  changed_when: false
+  failed_when: false
+
+- name: La restauración no actuó todavía
+  ansible.builtin.assert:
+    that: kit01_red_pendiente.stdout == 'active'
+    fail_msg: >-
+      La restauración {{ kit01_red_unidad }} ya actuó, así que la red volvió a lo anterior. El acceso tardó
+      más de {{ kit01_red_restauracion }} s en volver con el cambio; se revisa antes de repetir
+    quiet: true
 
 - name: Cancelar la restauración
   ansible.builtin.command: systemctl stop {{ kit01_red_unidad }}.timer
