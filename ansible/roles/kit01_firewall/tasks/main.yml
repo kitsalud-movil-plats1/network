@@ -1,0 +1,137 @@
+---
+# Una restauración pendiente desharía lo que esta ejecución diera por bueno
+- name: Restauraciones pendientes
+  ansible.builtin.shell: systemctl list-timers --all --no-legend 'fw-rollback-*' 'net-rollback-*' | awk '{print $(NF-1)}'
+  register: kit01_firewall_pendientes
+  check_mode: false
+  changed_when: false
+
+- name: Sin restauraciones pendientes
+  ansible.builtin.assert:
+    that: kit01_firewall_pendientes.stdout | length == 0
+    fail_msg: >-
+      Hay una restauración pendiente ({{ kit01_firewall_pendientes.stdout_lines | join(', ') }}).
+      Se espera a que termine o, si el acceso funciona, se cancela con systemctl stop y el nombre del timer
+    quiet: true
+
+# Archivos que no cambian el firewall activo
+- name: Carpeta de quitar.nft
+  ansible.builtin.file:
+    path: /etc/nftables
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: quitar.nft, que borra solo las tablas de kit01
+  ansible.builtin.copy:
+    src: "{{ kit01_firewall_fuente }}/quitar.nft"
+    dest: /etc/nftables/quitar.nft
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Carpeta del drop-in de nftables.service
+  ansible.builtin.file:
+    path: /etc/systemd/system/nftables.service.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+# El ExecStop de Ubuntu es "nft flush ruleset", que borraría las tablas de NetBird
+- name: ExecStop propio de nftables.service
+  ansible.builtin.copy:
+    src: "{{ kit01_firewall_fuente }}/nftables.service.d/kit01.conf"
+    dest: /etc/systemd/system/nftables.service.d/kit01.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Recargar systemd
+
+- name: nftables carga el firewall al arrancar
+  ansible.builtin.systemd_service:
+    name: nftables
+    enabled: true
+
+# El candidato se genera en /run (tmpfs) también con --check, para comparar sin
+# escribir /etc/nftables.conf ni tocar el firewall activo
+- name: Carpeta temporal
+  ansible.builtin.file:
+    path: "{{ kit01_firewall_tmp }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+  check_mode: false
+  changed_when: false
+
+- name: Firewall candidato, validado con nft -c
+  ansible.builtin.template:
+    src: "{{ kit01_firewall_fuente }}/nftables.conf.j2"
+    dest: "{{ kit01_firewall_tmp }}/nftables.conf"
+    owner: root
+    group: root
+    mode: "0600"
+    validate: nft -c -f %s
+  check_mode: false
+  changed_when: false
+
+# Se carga en un network namespace desechable y se compara con lo activo. El
+# netns del host no cambia
+- name: ¿El ruleset del candidato es el activo?
+  ansible.builtin.shell: |
+    candidato=$(unshare --net sh -c 'nft -f {{ kit01_firewall_tmp }}/nftables.conf && nft -s list ruleset')
+    activo=$({% for t in kit01_firewall_tablas %}nft -s list table {{ t }} 2>/dev/null; {% endfor %})
+    [ "$candidato" = "$activo" ]
+  args:
+    executable: /bin/bash
+  register: kit01_firewall_igual
+  check_mode: false
+  changed_when: false
+  failed_when: kit01_firewall_igual.rc > 1
+
+- name: Archivo actual
+  ansible.builtin.stat:
+    path: /etc/nftables.conf
+    checksum_algorithm: sha256
+  register: kit01_firewall_actual
+
+- name: Candidato
+  ansible.builtin.stat:
+    path: "{{ kit01_firewall_tmp }}/nftables.conf"
+    checksum_algorithm: sha256
+  register: kit01_firewall_candidato
+
+# Copia para la restauración, solo cuando el archivo va a cambiar
+- name: Copia de /etc/nftables.conf
+  ansible.builtin.copy:
+    src: /etc/nftables.conf
+    dest: /etc/nftables.conf.anterior
+    remote_src: true
+    owner: root
+    group: root
+    mode: "0644"
+  when:
+    - kit01_firewall_actual.stat.exists
+    - kit01_firewall_actual.stat.checksum != kit01_firewall_candidato.stat.checksum
+
+- name: /etc/nftables.conf
+  ansible.builtin.template:
+    src: "{{ kit01_firewall_fuente }}/nftables.conf.j2"
+    dest: /etc/nftables.conf
+    owner: root
+    group: root
+    mode: "0755"
+    validate: nft -c -f %s
+  register: kit01_firewall_archivo
+
+- name: Con --check, el ruleset activo cambiaría
+  ansible.builtin.debug:
+    msg: El ruleset activo es distinto del archivo; la ejecución real lo aplica con restauración programada
+  when: ansible_check_mode and kit01_firewall_igual.rc != 0
+  changed_when: true
+
+- name: Aplicar con restauración programada
+  ansible.builtin.include_tasks: aplicar.yml
+  when: not ansible_check_mode and kit01_firewall_igual.rc != 0
