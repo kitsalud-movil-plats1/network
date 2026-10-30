@@ -1,9 +1,9 @@
-# 2026-10-27 14:38:48 by RouterOS 7.13.5
+# 2026-10-29 23:09:26 by RouterOS 7.13.5
 # software id = WDCW-PNZP
 #
 # model = CCR2004-16G-2S+
 # serial number = HGA09ZBSP3T
-/interface bridge add name=bridge-kit vlan-filtering=yes
+/interface bridge add dhcp-snooping=yes name=bridge-kit vlan-filtering=yes
 /interface ethernet set [ find default-name=ether1 ] name=ether1-kit01
 /interface ethernet set [ find default-name=ether2 ] name=ether2-ap01
 /interface ethernet set [ find default-name=ether3 ] disabled=yes name=ether3-laptop
@@ -32,22 +32,30 @@
 /interface ethernet switch port-isolation set 14 !forwarding-override
 /interface ethernet switch port-isolation set 15 !forwarding-override
 /interface ethernet switch port-isolation set 17 !forwarding-override
+/interface list add comment="Puertos de acceso (network#11)" name=acceso
 /port set 0 name=serial0
 /port set 1 name=serial1
 /system logging action set 3 bsd-syslog=yes remote=10.20.20.10
-/interface bridge port add bridge=bridge-kit frame-types=admit-only-vlan-tagged interface=ether1-kit01
-/interface bridge port add bridge=bridge-kit interface=ether2-ap01 pvid=10
+/interface bridge filter add action=drop chain=forward comment="IPv6 a ff02::1 (RA) desde los puertos de acceso (network#11, R-06)" dst-mac-address=33:33:00:00:00:01/FF:FF:FF:FF:FF:FF in-interface-list=acceso mac-protocol=ipv6
+/interface bridge port add bridge=bridge-kit frame-types=admit-only-vlan-tagged interface=ether1-kit01 trusted=yes
+/interface bridge port add bridge=bridge-kit hw=no interface=ether2-ap01 pvid=10
 /interface bridge port add bridge=bridge-kit frame-types=admit-only-vlan-tagged interface=ether3-laptop
-/interface bridge port add bridge=bridge-kit frame-types=admit-only-untagged-and-priority-tagged interface=ether4-interna pvid=10
-/interface bridge port add bridge=bridge-kit frame-types=admit-only-untagged-and-priority-tagged interface=ether5-interna pvid=10
-/interface bridge port add bridge=bridge-kit frame-types=admit-only-untagged-and-priority-tagged interface=ether6-interna pvid=10
-/interface bridge port add bridge=bridge-kit frame-types=admit-only-untagged-and-priority-tagged interface=ether7-interna pvid=10
-/interface bridge port add bridge=bridge-kit frame-types=admit-only-untagged-and-priority-tagged interface=ether8-interna pvid=10
+/interface bridge port add bridge=bridge-kit frame-types=admit-only-untagged-and-priority-tagged hw=no interface=ether4-interna pvid=10
+/interface bridge port add bridge=bridge-kit frame-types=admit-only-untagged-and-priority-tagged hw=no interface=ether5-interna pvid=10
+/interface bridge port add bridge=bridge-kit frame-types=admit-only-untagged-and-priority-tagged hw=no interface=ether6-interna pvid=10
+/interface bridge port add bridge=bridge-kit frame-types=admit-only-untagged-and-priority-tagged hw=no interface=ether7-interna pvid=10
+/interface bridge port add bridge=bridge-kit frame-types=admit-only-untagged-and-priority-tagged hw=no interface=ether8-interna pvid=10
 /ip settings set ip-forward=no
 /ipv6 settings set accept-router-advertisements=no forward=no
 /interface bridge vlan add bridge=bridge-kit tagged=bridge-kit,ether1-kit01,ether2-ap01,ether3-laptop untagged=ether4-interna,ether5-interna,ether6-interna,ether7-interna,ether8-interna vlan-ids=10
 /interface bridge vlan add bridge=bridge-kit tagged=ether1-kit01,ether2-ap01 vlan-ids=40
 /interface bridge vlan add bridge=bridge-kit tagged=ether1-kit01,ether3-laptop vlan-ids=20
+/interface list member add interface=ether2-ap01 list=acceso
+/interface list member add interface=ether4-interna list=acceso
+/interface list member add interface=ether5-interna list=acceso
+/interface list member add interface=ether6-interna list=acceso
+/interface list member add interface=ether7-interna list=acceso
+/interface list member add interface=ether8-interna list=acceso
 /ip address add address=10.20.10.2/24 interface=vlan10-Interna network=10.20.10.0
 /ip route add gateway=10.20.10.1
 /ipv6 route add dst-address=::/0 gateway=fe80::1%vlan10-Interna
