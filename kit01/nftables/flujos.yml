@@ -1,0 +1,54 @@
+---
+# Flujos que prueba platform/ansible/playbooks/verificar-flujos.yml (network#10,
+# sección 11 del documento). Cada entrada se prueba desde "desde" hacia cada
+# dirección de "a" (una por familia). Con "puerto" es una conexión TCP; sin él,
+# eco ICMP o ICMPv6. "espera" es abierto o bloqueado. En prueba01, "portal"
+# dice si se prueba antes o después de aceptar el portal.
+flujos:
+  # kit01 hacia las VMs y hacia Internet
+  - { id: F-02, desde: kit01, que: SSH a clinica01, a: ["{{ equipos.clinica01.ipv4 }}", "{{ equipos.clinica01.ipv6 }}"], puerto: 22, espera: abierto }
+  - { id: F-02, desde: kit01, que: SSH a comunidad01, a: ["{{ equipos.comunidad01.ipv4 }}", "{{ equipos.comunidad01.ipv6 }}"], puerto: 22, espera: abierto }
+  - { id: F-13, desde: kit01, que: LDAPS de clinica01, a: ["{{ equipos.clinica01.ipv4 }}", "{{ equipos.clinica01.ipv6 }}"], puerto: 636, espera: abierto }
+  - { id: F-14, desde: kit01, que: node_exporter de comunidad01, a: ["{{ equipos.comunidad01.ipv4 }}", "{{ equipos.comunidad01.ipv6 }}"], puerto: 9100, espera: abierto }
+  - { id: F-25, desde: kit01, que: DNS de Samba AD, a: ["{{ equipos.clinica01.ipv4 }}", "{{ equipos.clinica01.ipv6 }}"], puerto: 53, espera: abierto }
+  - { id: F-18, desde: kit01, que: HTTPS hacia Internet, a: [portquiz.net], puerto: 443, espera: abierto }
+  - { id: F-18, desde: kit01, que: otro puerto hacia Internet, a: [portquiz.net], puerto: 8080, espera: bloqueado }
+
+  # Entre las VMs (tabla bridge) y de las VMs hacia kit01 e Internet
+  - { id: F-11, desde: comunidad01, que: PostgreSQL de clinica01, a: ["{{ equipos.clinica01.ipv4 }}", "{{ equipos.clinica01.ipv6 }}"], puerto: 5432, espera: abierto }
+  - { id: br-srv, desde: comunidad01, que: SMB de clinica01, a: ["{{ equipos.clinica01.ipv4 }}", "{{ equipos.clinica01.ipv6 }}"], puerto: 445, espera: bloqueado }
+  - { id: br-srv, desde: comunidad01, que: SSH de clinica01, a: ["{{ equipos.clinica01.ipv4 }}", "{{ equipos.clinica01.ipv6 }}"], puerto: 22, espera: bloqueado }
+  - { id: F-12, desde: clinica01, que: SSH de comunidad01, a: ["{{ equipos.comunidad01.ipv4 }}", "{{ equipos.comunidad01.ipv6 }}"], puerto: 22, espera: abierto }
+  - { id: br-srv, desde: clinica01, que: HTTP de comunidad01, a: ["{{ equipos.comunidad01.ipv4 }}", "{{ equipos.comunidad01.ipv6 }}"], puerto: 80, espera: bloqueado }
+  - { id: br-srv, desde: clinica01, que: eco a comunidad01, a: ["{{ equipos.comunidad01.ipv4 }}", "{{ equipos.comunidad01.ipv6 }}"], espera: bloqueado }
+  - { id: F-03, desde: comunidad01, que: DNS de kit01, a: ["{{ servicios_kit01.ipv4 }}", "{{ servicios_kit01.ipv6 }}"], puerto: 53, espera: abierto }
+  - { id: F-15, desde: clinica01, que: rsyslog de kit01, a: ["{{ servicios_kit01.ipv4 }}", "{{ servicios_kit01.ipv6 }}"], puerto: 514, espera: abierto }
+  - { id: F-17, desde: clinica01, que: HTTPS hacia Internet, a: [portquiz.net], puerto: 443, espera: abierto }
+  - { id: F-17, desde: clinica01, que: otro puerto hacia Internet, a: [portquiz.net], puerto: 8080, espera: bloqueado }
+  - { id: F-02, desde: comunidad01, que: SSH de kit01, a: ["{{ redes.servidores.gw4 }}", "{{ servicios_kit01.ipv6 }}"], puerto: 22, espera: bloqueado }
+
+  # La Comunidad (prueba01), antes y después de aceptar el portal
+  - { id: F-08, desde: prueba01, portal: antes, que: página del portal, a: ["{{ redes.comunidad.gw4 }}", "{{ redes.comunidad.gw6 }}"], puerto: 80, espera: abierto }
+  - { id: F-03, desde: prueba01, portal: antes, que: DNS de kit01, a: ["{{ servicios_kit01.ipv4 }}", "{{ servicios_kit01.ipv6 }}"], puerto: 53, espera: abierto }
+  - { id: F-09, desde: prueba01, portal: antes, que: registro sin aceptar, a: ["{{ equipos.comunidad01.ipv4 }}", "{{ equipos.comunidad01.ipv6 }}"], puerto: 443, espera: bloqueado }
+  - { id: F-20, desde: prueba01, portal: antes, que: DHIS2 de clinica01 (P3), a: ["{{ equipos.clinica01.ipv4 }}", "{{ equipos.clinica01.ipv6 }}"], puerto: 443, espera: bloqueado }
+  - { id: F-20, desde: prueba01, portal: antes, que: SSH de kit01 (P3), a: ["{{ redes.comunidad.gw4 }}", "{{ redes.comunidad.gw6 }}"], puerto: 22, espera: bloqueado }
+  - { id: F-09, desde: prueba01, portal: despues, que: biblioteca y videos, a: ["{{ equipos.comunidad01.ipv4 }}", "{{ equipos.comunidad01.ipv6 }}"], puerto: 80, espera: abierto }
+  - { id: F-09, desde: prueba01, portal: despues, que: registro, a: ["{{ equipos.comunidad01.ipv4 }}", "{{ equipos.comunidad01.ipv6 }}"], puerto: 443, espera: abierto }
+  - { id: F-10, desde: prueba01, portal: despues, que: HTTPS hacia Internet, a: [portquiz.net], puerto: 443, espera: abierto }
+  - { id: F-20, desde: prueba01, portal: despues, que: "DHIS2 de clinica01 (P3, P10)", a: ["{{ equipos.clinica01.ipv4 }}", "{{ equipos.clinica01.ipv6 }}"], puerto: 443, espera: bloqueado }
+  - { id: F-20, desde: prueba01, portal: despues, que: SSH de kit01, a: ["{{ redes.comunidad.gw4 }}", "{{ redes.comunidad.gw6 }}"], puerto: 22, espera: bloqueado }
+  - { id: F-20, desde: prueba01, portal: despues, que: monitoreo de kit01, a: ["{{ servicios_kit01.ipv4 }}", "{{ servicios_kit01.ipv6 }}"], puerto: 443, espera: bloqueado }
+  - { id: F-20, desde: prueba01, portal: despues, que: sw01 en la Interna, a: ["{{ equipos.sw01.ipv4 }}", "{{ equipos.sw01.ipv6 }}"], puerto: 22, espera: bloqueado }
+
+  # La Interna sin IP de administración (sw01)
+  - { id: F-05, desde: sw01, que: SMB de clinica01, a: ["{{ equipos.clinica01.ipv4 }}", "{{ equipos.clinica01.ipv6 }}"], puerto: 445, espera: abierto }
+  - { id: F-07, desde: sw01, que: biblioteca de comunidad01, a: ["{{ equipos.comunidad01.ipv4 }}", "{{ equipos.comunidad01.ipv6 }}"], puerto: 80, espera: abierto }
+  - { id: F-21, desde: sw01, que: SSH de kit01, a: ["{{ redes.interna.gw4 }}", "{{ redes.interna.gw6 }}"], puerto: 22, espera: bloqueado }
+  - { id: F-21, desde: sw01, que: SSH de clinica01, a: ["{{ equipos.clinica01.ipv4 }}", "{{ equipos.clinica01.ipv6 }}"], puerto: 22, espera: bloqueado }
+  - { id: F-22, desde: sw01, que: eco a clinica01, a: ["{{ equipos.clinica01.ipv4 }}", "{{ equipos.clinica01.ipv6 }}"], espera: abierto }
+  - { id: F-22, desde: sw01, que: eco a comunidad01, a: ["{{ equipos.comunidad01.ipv4 }}", "{{ equipos.comunidad01.ipv6 }}"], espera: abierto }
+  - { id: F-22, desde: sw01, que: eco a kit01, a: ["{{ redes.interna.gw4 }}", "{{ redes.interna.gw6 }}"], espera: abierto }
+
+# Prefijos del log que el resumen cuenta en kit01
+flujos_registros: ["fw-drop F-18", "fw-drop F-20", "fw-drop F-21", "fw-drop br-srv"]
