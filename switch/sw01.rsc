@@ -48,7 +48,9 @@
 /ip settings set ip-forward=no
 /ipv6 settings set accept-router-advertisements=no forward=no
 /interface bridge vlan add bridge=bridge-kit tagged=bridge-kit,ether1-kit01,ether2-ap01,ether3-laptop untagged=ether4-interna,ether5-interna,ether6-interna,ether7-interna,ether8-interna vlan-ids=10
-/interface bridge vlan add bridge=bridge-kit tagged=ether1-kit01,ether2-ap01 vlan-ids=40
+# La CPU (bridge-kit) va en la VLAN 40 sin dirección: ether2 no tiene descarga por
+# hardware, así que lo que llega de ether1 por el chip tiene que subir a la CPU
+/interface bridge vlan add bridge=bridge-kit tagged=bridge-kit,ether1-kit01,ether2-ap01 vlan-ids=40
 /interface bridge vlan add bridge=bridge-kit tagged=ether1-kit01,ether3-laptop vlan-ids=20
 /interface list member add interface=ether2-ap01 list=acceso
 /interface list member add interface=ether4-interna list=acceso

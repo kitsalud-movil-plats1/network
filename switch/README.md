@@ -18,7 +18,7 @@ ether2 es híbrido porque la gestión del AP responde sin etiqueta (S-03).
 
 ## Configuración aplicada
 
-- Bridge `bridge-kit` con `vlan-filtering=yes`; tabla de VLAN 10, 40 y 20 según la tabla anterior.
+- Bridge `bridge-kit` con `vlan-filtering=yes`; tabla de VLAN 10, 40 y 20 según la tabla anterior. La CPU (`bridge-kit`) es miembro etiquetado de la VLAN 40 sin dirección, porque ether2 pasa por la CPU (`hw=no`) y sin eso las tramas unicast que llegan de ether1 por el chip no salen hacia el AP.
 - Gestión en `vlan10-Interna` sobre el bridge, con `10.20.10.2/24` y `fd5a:fc7e:d716:10::2/64`; ruta por defecto IPv4 a `10.20.10.1` e IPv6 a `fe80::1%vlan10-Interna`.
 - Reenvío IPv4 e IPv6 desactivado; sin aceptar RA.
 - Servicios telnet, FTP, web y API apagados; SSH y Winbox solo desde `10.20.10.1` y las IPs de administración `10.20.10.10-29`, que son IPv4, así que por IPv6 no entra nadie.
