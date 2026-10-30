@@ -65,7 +65,7 @@ En kit01:
 
 ## Diagnóstico
 
-- **El cliente no ve el portal.** Desde el cliente, `curl -v http://1.1.1.1/` tiene que dar `302`. Si no responde, revisar que tenga dirección de la Comunidad y que nginx escuche (`ss -tlnp`). Los sistemas que solo prueban por HTTPS no ven el portal; se abre a mano `http://portal.salud.movil`. Sin Internet, la detección automática depende de network#9.
+- **El cliente no ve el portal.** Desde el cliente, `curl -v http://1.1.1.1/` tiene que dar `302`. Si no responde, revisar que tenga dirección de la Comunidad y que nginx escuche (`ss -tlnp`). Los sistemas que solo prueban por HTTPS no ven el portal; se abre a mano `http://portal.salud.movil`. Sin Internet, el sistema operativo puede no abrir el portal solo; se abre en el navegador una dirección local por HTTP, como `http://biblioteca.salud.movil`, y la redirección lleva al portal.
 - **«No se encontró su equipo» (`409`).** La IP del cliente no está en la tabla de vecinos de `br-com` (`ip neigh show dev br-com`). Pasa si el cliente cambió de dirección; se recarga la página y se acepta otra vez.
 - **«No se pudo dar acceso» (`500`).** `journalctl -u kitsalud-portal` muestra el error de `nft`. Lo más común es que el set no exista porque el firewall no está cargado (`sudo nft list set inet filtro portal_ok`).
 - **Aceptó pero no llega a comunidad01.** `sudo nft list set inet filtro portal_ok` tiene que mostrar su MAC. Si está, revisar `journalctl -k | grep fw-drop` con `IN=br-com`.
