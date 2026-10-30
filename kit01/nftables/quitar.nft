@@ -5,3 +5,5 @@ table inet filtro
 delete table inet filtro
 table ip nat_kit
 delete table ip nat_kit
+table bridge filtro_vms
+delete table bridge filtro_vms
