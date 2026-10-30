@@ -1,0 +1,26 @@
+# {{ ansible_managed }} (rol kit01_portal, network#8)
+[Unit]
+Description=Aceptación del portal cautivo de la Comunidad
+After=network-online.target nftables.service
+Wants=network-online.target
+
+[Service]
+ExecStart=/usr/bin/python3 {{ kit01_portal_app }}
+Environment=PORTAL_ESCUCHA={{ portal_app }}
+Environment=PORTAL_INTERFAZ={{ kit01_portal_interfaz }}
+Environment="PORTAL_SET=inet filtro {{ portal_set }}"
+Environment="PORTAL_REDES={{ kit01_portal_redes | join(' ') }}"
+Restart=on-failure
+# Sin usuario fijo y solo con el permiso de agregar elementos a nftables
+DynamicUser=yes
+AmbientCapabilities=CAP_NET_ADMIN
+CapabilityBoundingSet=CAP_NET_ADMIN
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_NETLINK AF_UNIX
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,59 @@
+---
+- name: Carpetas de las páginas y del servicio
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop: ["{{ kit01_portal_paginas }}", "{{ kit01_portal_app | dirname }}"]
+
+- name: Páginas del portal
+  ansible.builtin.copy:
+    src: "{{ kit01_portal_fuente }}/paginas/"
+    dest: "{{ kit01_portal_paginas }}/"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Servicio que autoriza la MAC
+  ansible.builtin.copy:
+    src: "{{ kit01_portal_fuente }}/portal.py"
+    dest: "{{ kit01_portal_app }}"
+    owner: root
+    group: root
+    mode: "0755"
+  notify: Reiniciar el servicio del portal
+
+- name: Unidad del servicio
+  ansible.builtin.template:
+    src: kitsalud-portal.service.j2
+    dest: /etc/systemd/system/kitsalud-portal.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reiniciar el servicio del portal
+
+- name: Servicio del portal activo al arrancar
+  ansible.builtin.systemd_service:
+    name: kitsalud-portal
+    enabled: true
+    state: started
+    daemon_reload: true
+
+# "Recargar nginx" es del rol nginx, que va antes en el playbook
+- name: Sitio del portal en nginx
+  ansible.builtin.template:
+    src: "{{ kit01_portal_fuente }}/portal.nginx.j2"
+    dest: /etc/nginx/sites-available/portal
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Recargar nginx
+
+- name: Sitio del portal activo
+  ansible.builtin.file:
+    src: /etc/nginx/sites-available/portal
+    dest: /etc/nginx/sites-enabled/portal
+    state: link
+  notify: Recargar nginx
