@@ -8,6 +8,11 @@ kit01_firewall_if_netbird: wt0
 kit01_firewall_wg_puerto: 51820
 # Tablas propias de kit01; las de iptables-nft (NetBird, libvirt) no se tocan
 kit01_firewall_tablas: ["inet filtro", "ip nat_kit"]
+# Sets que se llenan en marcha (MAC autorizadas por el portal, network#8). Su
+# contenido no cuenta al comparar y se conserva al aplicar, con el tiempo que
+# le queda a cada elemento
+kit01_firewall_sets_dinamicos:
+  - { familia: inet, tabla: filtro, set: portal_ok }
 
 # Aplicación con restauración programada (D-23). Si el acceso no vuelve a
 # funcionar desde una conexión nueva, a los segundos indicados se carga el

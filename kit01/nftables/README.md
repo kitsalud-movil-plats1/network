@@ -30,13 +30,16 @@ Un paquete tiene que pasar todas las cadenas del mismo gancho, las de iptables-n
 | F-01, F-22 | Interna y `wt0` | Eco ICMP (IPv6 solo desde la Interna) |
 | F-23 | Comunidad y Servidores (`br-srv`) | Eco ICMP solo hacia su gateway (`10.20.40.1`, `fd5a:fc7e:d716:40::1`; `10.20.20.1`, `fd5a:fc7e:d716:20::1`; y `fe80::1`) |
 | F-04 | Interna y Comunidad | DHCPv4 (`udp/67`) y DHCPv6 (`udp/547` desde `fe80::/10`) |
+| F-08 | Comunidad | Página del portal cautivo, solo HTTP (`tcp/80`) hacia `10.20.40.1` y `fd5a:fc7e:d716:40::1` ([`../portal/`](../portal/)) |
 | F-03 | Interna, Comunidad y `br-srv` | DNS (`53` tcp/udp) y NTP (`udp/123`) hacia `10.20.20.10` y `fd5a:fc7e:d716:20::10` |
 | F-15 | clinica01 y comunidad01 (`10.20.20.11`, `.12` y sus `::11`, `::12`) por `br-srv` | rsyslog (`tcp/514`) hacia `10.20.20.10` y `fd5a:fc7e:d716:20::10` |
 | F-16 | sw01 (`10.20.10.2` y `fd5a:fc7e:d716:10::2`) por la Interna | rsyslog (`udp/514`) hacia `10.20.20.10` y `fd5a:fc7e:d716:20::10` |
 | F-01, F-21 | Admin (`10.20.10.10-29` en la Interna) y `wt0` | SSH (22) y monitoreo (443) |
 | - | `enp170s0` | WireGuard de NetBird (`udp/51820`) |
 
-**Reenvío (`forward`, política drop).** Conexiones establecidas, errores ICMPv6 en tránsito (F-19), la Interna hacia `enp170s0` solo por IPv4 (F-24) y las VMs (`10.20.20.11` y `.12`) hacia `enp170s0` por 80 y 443, solo IPv4 (F-17), todo con masquerade de `10.20.0.0/16` en `ip nat_kit`. La Interna llega a DHIS2 y a los recursos SMB de clinica01 (`10.20.20.11` y `fd5a:fc7e:d716:20::11`, `tcp/443` y `tcp/445`, F-05). También llega al 80 y al 443 de comunidad01 (`10.20.20.12` y `fd5a:fc7e:d716:20::12`, F-07), para la biblioteca, los videos y el registro; la Comunidad llega con el portal (F-09, network#8). Las VMs resuelven por BIND9 en kit01 (`10.20.20.10`), así que no necesitan salir por el 53. Los demás flujos de la sección 11 se agregan en la matriz de flujos (network#10) y el portal en network#8.
+**Reenvío (`forward`, política drop).** Conexiones establecidas, errores ICMPv6 en tránsito (F-19), la Interna hacia `enp170s0` solo por IPv4 (F-24) y las VMs (`10.20.20.11` y `.12`) hacia `enp170s0` por 80 y 443, solo IPv4 (F-17), todo con masquerade de `10.20.0.0/16` en `ip nat_kit`. La Interna llega a DHIS2 y a los recursos SMB de clinica01 (`10.20.20.11` y `fd5a:fc7e:d716:20::11`, `tcp/443` y `tcp/445`, F-05). También llega al 80 y al 443 de comunidad01 (`10.20.20.12` y `fd5a:fc7e:d716:20::12`, F-07), para la biblioteca, los videos y el registro. La Comunidad llega a esos mismos puertos de comunidad01 en IPv4 e IPv6 (F-09) y a Internet solo por IPv4 (F-10), únicamente con la MAC en el set `portal_ok`; sin ella, su HTTPS se rechaza con RST. Las VMs resuelven por BIND9 en kit01 (`10.20.20.10`), así que no necesitan salir por el 53. Los demás flujos de la sección 11 se agregan en la matriz de flujos (network#10).
+
+**Portal cautivo.** El set `portal_ok` (`type ether_addr`, `timeout 8h`) guarda las MAC que aceptaron las condiciones, y lo llena el servicio del portal. La cadena `portal_redireccion` (`nat`, prerouting) manda el HTTP de la Comunidad sin aceptar, hacia cualquier destino que no sea kit01, a `10.20.40.1` o `fd5a:fc7e:d716:40::1`. Los dos están en `inet filtro` porque un set solo se usa dentro de su tabla, y así falla cerrado, porque sin el set nadie de la Comunidad pasa.
 
 **Salida de kit01 (`output`).** Sin filtrar en esta base. La restricción de F-18 va en la matriz de flujos.
 
@@ -80,7 +83,7 @@ Para comparar a mano un archivo con lo activo sin aplicarlo, se compara `sudo un
 | Desde la Comunidad (`prueba01`), `nc -zv -w4 10.20.20.11 445` (y `443`) y con `fd5a:fc7e:d716:20::11` | `timed out` y `fw-drop IN=br-com OUT=br-srv ... DPT=445` (o `443`) en el log (P3) |
 | Desde sw01, `/tool fetch url="http://10.20.20.12/" http-header-field="Host: biblioteca.salud.movil" output=user` y con `http://[fd5a:fc7e:d716:20::12]/` | `status: finished` con la página de Kiwix |
 | Desde sw01, `/tool fetch url="https://10.20.20.12/" http-header-field="Host: registro.salud.movil" check-certificate=no output=user` y con `[fd5a:fc7e:d716:20::12]` | `status: finished` con el formulario de prerregistro |
-| Desde la Comunidad (`prueba01`), `nc -zv -w4 10.20.20.12 80` (y `443`) y con `fd5a:fc7e:d716:20::12` | `timed out` hasta que exista el portal (network#8) |
+| Desde la Comunidad (`prueba01`), `curl http://biblioteca.salud.movil/` antes y después de aceptar el portal, con `-4` y `-6` | `302` hacia el portal y después `200` (ver [`../portal/`](../portal/)) |
 | `sudo nft list chain inet filtro input \| grep 'dport 514'` | Los contadores de F-15 y F-16 suben con el reenvío de las VMs y los mensajes de sw01 (`observability/rsyslog/`) |
 | `sudo nft list table ip nat_kit` | El contador del masquerade sube |
 | `systemctl restart nftables` y luego `nft list tables` | Las mismas tablas; las de iptables-nft no se tocan |

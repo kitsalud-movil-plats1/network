@@ -1,0 +1,37 @@
+# {{ ansible_managed }} (rol kit01_portal, network#8)
+# Portal cautivo (D-22, sección 6.4). Solo en las direcciones de kit01 en la
+# Comunidad y solo por HTTP. nftables manda aquí el HTTP de los clientes que no
+# aceptaron, con cualquier nombre, y nginx los lleva a portal.{{ dominio }}.
+server {
+	listen {{ redes.comunidad.gw4 }}:80 default_server;
+	listen [{{ redes.comunidad.gw6 }}]:80 default_server;
+	server_name portal.{{ dominio }};
+
+	root {{ kit01_portal_paginas }};
+	access_log /var/log/nginx/portal.log;
+	add_header Cache-Control "no-store" always;
+
+	if ($host != "portal.{{ dominio }}") {
+		return 302 http://portal.{{ dominio }}/;
+	}
+
+	location = / {
+		try_files /condiciones.html =404;
+	}
+
+	location = /inicio {
+		try_files /inicio.html =404;
+	}
+
+	location = /aceptar {
+		limit_except POST {
+			deny all;
+		}
+		proxy_pass http://{{ portal_app }};
+		proxy_set_header X-Real-IP $remote_addr;
+	}
+
+	location / {
+		try_files $uri =404;
+	}
+}

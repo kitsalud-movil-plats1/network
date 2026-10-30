@@ -1,0 +1,9 @@
+---
+# Portal cautivo de kit01 (R5, D-22, sección 6.4, network#8). El set, la
+# redirección y los flujos están en el firewall (rol kit01_firewall); aquí van
+# las páginas, el sitio de nginx y el servicio que autoriza la MAC
+kit01_portal_fuente: "{{ role_path }}/../../../kit01/portal"
+kit01_portal_paginas: /usr/share/kitsalud-portal
+kit01_portal_app: /usr/local/lib/kitsalud-portal/portal.py
+kit01_portal_interfaz: "{{ redes.comunidad.interfaz }}"
+kit01_portal_redes: ["{{ redes.comunidad.ipv4 }}", "{{ redes.comunidad.ipv6 }}"]

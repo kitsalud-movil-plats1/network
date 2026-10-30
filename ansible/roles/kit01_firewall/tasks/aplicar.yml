@@ -25,6 +25,30 @@
     nft -c -f {{ kit01_firewall_tmp }}/anterior.nft
   changed_when: false
 
+# Las MAC autorizadas, como comandos que las vuelven a agregar con el tiempo
+# que les queda. Recrear la tabla las borraría
+- name: Elementos de los sets dinámicos
+  ansible.builtin.shell: |
+    set -o pipefail
+    : > {{ kit01_firewall_tmp }}/elementos.nft
+    {% for d in kit01_firewall_sets_dinamicos %}
+    if nft list set {{ d.familia }} {{ d.tabla }} {{ d.set }} >/dev/null 2>&1; then
+      nft -j list set {{ d.familia }} {{ d.tabla }} {{ d.set }} | python3 -c '
+    import json, sys
+    s = [o["set"] for o in json.load(sys.stdin)["nftables"] if "set" in o][0]
+    for e in s.get("elem", []):
+        e = e.get("elem", e) if isinstance(e, dict) else {"val": e}
+        t = " timeout %ds" % max(1, e["expires"]) if "expires" in e else ""
+        print("add element {{ d.familia }} {{ d.tabla }} {{ d.set }} { %s%s }" % (e["val"], t))
+    ' >> {{ kit01_firewall_tmp }}/elementos.nft
+    fi
+    {% endfor %}
+    wc -l < {{ kit01_firewall_tmp }}/elementos.nft
+  args:
+    executable: /bin/bash
+  register: kit01_firewall_elementos
+  changed_when: false
+
 - name: Nombre de la restauración
   ansible.builtin.set_fact:
     kit01_firewall_unidad: "fw-rollback-{{ now(fmt='%s') }}"
@@ -35,8 +59,12 @@
     sh -c 'nft -f {{ kit01_firewall_tmp }}/anterior.nft{{ " && cp /etc/nftables.conf.anterior /etc/nftables.conf" if kit01_firewall_archivo is changed else "" }}'
   changed_when: true
 
-- name: Aplicar el firewall
-  ansible.builtin.command: nft -f /etc/nftables.conf
+# En un solo comando, para que las MAC vuelvan apenas se recrea la tabla. Las
+# de un set que ya no existe se descartan
+- name: Aplicar el firewall y volver a agregar las MAC autorizadas
+  ansible.builtin.shell: |
+    nft -f /etc/nftables.conf || exit 1
+    while read -r l; do nft "$l" 2>/dev/null || echo "descartado: $l"; done < {{ kit01_firewall_tmp }}/elementos.nft
   changed_when: true
 
 # Una conexión nueva, no la que ya estaba abierta (ControlPersist)
@@ -51,8 +79,8 @@
 
 - name: El ruleset activo es el del archivo
   ansible.builtin.shell: |
-    candidato=$(unshare --net sh -c 'nft -f /etc/nftables.conf && nft -s list ruleset')
-    activo=$({% for t in kit01_firewall_tablas %}nft -s list table {{ t }} 2>/dev/null; {% endfor %})
+    candidato=$(unshare --net sh -c 'nft -f /etc/nftables.conf && nft -s -t list ruleset')
+    activo=$({% for t in kit01_firewall_tablas %}nft -s -t list table {{ t }} 2>/dev/null; {% endfor %})
     [ "$candidato" = "$activo" ]
   args:
     executable: /bin/bash

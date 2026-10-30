@@ -77,12 +77,12 @@
   check_mode: false
   changed_when: false
 
-# Se carga en un network namespace desechable y se compara con lo activo. El
-# netns del host no cambia
+# Se carga en un network namespace desechable y se compara con lo activo, sin
+# el contenido de los sets (-t). El netns del host no cambia
 - name: ¿El ruleset del candidato es el activo?
   ansible.builtin.shell: |
-    candidato=$(unshare --net sh -c 'nft -f {{ kit01_firewall_tmp }}/nftables.conf && nft -s list ruleset')
-    activo=$({% for t in kit01_firewall_tablas %}nft -s list table {{ t }} 2>/dev/null; {% endfor %})
+    candidato=$(unshare --net sh -c 'nft -f {{ kit01_firewall_tmp }}/nftables.conf && nft -s -t list ruleset')
+    activo=$({% for t in kit01_firewall_tablas %}nft -s -t list table {{ t }} 2>/dev/null; {% endfor %})
     [ "$candidato" = "$activo" ]
   args:
     executable: /bin/bash
