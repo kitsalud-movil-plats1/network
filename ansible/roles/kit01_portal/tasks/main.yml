@@ -34,12 +34,14 @@
     mode: "0644"
   notify: Reiniciar el servicio del portal
 
+# Con --check en la primera ejecución la unidad todavía no existe
 - name: Servicio del portal activo al arrancar
   ansible.builtin.systemd_service:
     name: kitsalud-portal
     enabled: true
     state: started
     daemon_reload: true
+  ignore_errors: "{{ ansible_check_mode }}"
 
 # "Recargar nginx" es del rol nginx, que va antes en el playbook
 - name: Sitio del portal en nginx
