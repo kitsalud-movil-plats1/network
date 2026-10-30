@@ -1,6 +1,9 @@
-# Salida de 'nft -s list table inet filtro' y 'nft -s list table ip nat_kit' en kit01 (2026-10-27, con F-15 y F-16).
-# Las tablas ip filter, ip nat, ip mangle, ip raw e ip6 * son de iptables-nft (NetBird y libvirt) y no se versionan.
 table inet filtro {
+	set portal_ok {
+		type ether_addr
+		timeout 8h
+	}
+
 	chain input {
 		type filter hook input priority filter; policy drop;
 		iif "lo" accept
@@ -16,6 +19,8 @@ table inet filtro {
 		iifname "br-srv" ip6 daddr { fd5a:fc7e:d716:20::1, fe80::1 } icmpv6 type echo-request counter accept
 		iifname { "br-com", "lan0.10" } udp dport 67 counter accept
 		iifname { "br-com", "lan0.10" } ip6 saddr fe80::/10 udp dport 547 counter accept
+		iifname "br-com" ip daddr 10.20.40.1 tcp dport 80 counter accept
+		iifname "br-com" ip6 daddr fd5a:fc7e:d716:40::1 tcp dport 80 counter accept
 		iifname { "br-com", "br-srv", "lan0.10" } ip daddr 10.20.20.10 meta l4proto { tcp, udp } th dport 53 counter accept
 		iifname { "br-com", "br-srv", "lan0.10" } ip6 daddr fd5a:fc7e:d716:20::10 meta l4proto { tcp, udp } th dport 53 counter accept
 		iifname { "br-com", "br-srv", "lan0.10" } ip daddr 10.20.20.10 udp dport 123 counter accept
@@ -27,6 +32,9 @@ table inet filtro {
 		iifname "lan0.10" ip saddr 10.20.10.10-10.20.10.29 tcp dport { 22, 443 } counter accept
 		iifname "wt0" tcp dport { 22, 443 } counter accept
 		iifname "enp170s0" udp dport 51820 counter accept
+		iifname "br-com" tcp dport { 22, 443 } counter goto bloqueo_f20
+		iifname "lan0.10" ip saddr != 10.20.10.10-10.20.10.29 tcp dport 22 counter goto bloqueo_f21
+		iifname "lan0.10" meta nfproto ipv6 tcp dport 22 counter goto bloqueo_f21
 		limit rate 10/second burst 50 packets log prefix "fw-drop " level info
 		counter
 	}
@@ -36,18 +44,75 @@ table inet filtro {
 		ct state established,related accept
 		ct state invalid counter drop
 		icmpv6 type { destination-unreachable, packet-too-big, time-exceeded, parameter-problem } counter accept
+		iifname "br-com" oifname "lan0.10" counter goto bloqueo_f20
+		iifname "br-com" ip daddr 10.20.20.11 counter goto bloqueo_f20
+		iifname "br-com" ip6 daddr fd5a:fc7e:d716:20::11 counter goto bloqueo_f20
+		iifname "lan0.10" oifname "br-srv" tcp dport 22 counter goto bloqueo_f21
 		iifname "lan0.10" oifname "enp170s0" meta nfproto ipv4 counter accept
 		iifname "br-srv" oifname "enp170s0" ip saddr { 10.20.20.11, 10.20.20.12 } tcp dport { 80, 443 } counter accept
 		iifname "lan0.10" oifname "br-srv" ip daddr 10.20.20.11 tcp dport { 443, 445 } counter accept
 		iifname "lan0.10" oifname "br-srv" ip6 daddr fd5a:fc7e:d716:20::11 tcp dport { 443, 445 } counter accept
+		iifname "lan0.10" oifname "br-srv" ip daddr { 10.20.20.11, 10.20.20.12 } icmp type echo-request counter accept
+		iifname "lan0.10" oifname "br-srv" ip6 daddr { fd5a:fc7e:d716:20::11, fd5a:fc7e:d716:20::12 } icmpv6 type echo-request counter accept
 		iifname "lan0.10" oifname "br-srv" ip daddr 10.20.20.12 tcp dport { 80, 443 } counter accept
 		iifname "lan0.10" oifname "br-srv" ip6 daddr fd5a:fc7e:d716:20::12 tcp dport { 80, 443 } counter accept
+		iifname "br-com" oifname "br-srv" ether saddr @portal_ok ip daddr 10.20.20.12 tcp dport { 80, 443 } counter accept
+		iifname "br-com" oifname "br-srv" ether saddr @portal_ok ip6 daddr fd5a:fc7e:d716:20::12 tcp dport { 80, 443 } counter accept
+		iifname "br-com" oifname "enp170s0" ether saddr @portal_ok meta nfproto ipv4 counter accept
+		iifname "br-com" ether saddr != @portal_ok tcp dport 443 counter reject with tcp reset
 		limit rate 10/second burst 50 packets log prefix "fw-drop " level info
 		counter
 	}
 
+	chain portal_redireccion {
+		type nat hook prerouting priority dstnat; policy accept;
+		iifname "br-com" ether saddr != @portal_ok fib daddr type != local meta nfproto ipv4 tcp dport 80 counter dnat ip to 10.20.40.1
+		iifname "br-com" ether saddr != @portal_ok fib daddr type != local meta nfproto ipv6 tcp dport 80 counter dnat ip6 to fd5a:fc7e:d716:40::1
+	}
+
 	chain output {
 		type filter hook output priority filter; policy accept;
+		oifname "enp170s0" jump salida_wan
+	}
+
+	chain salida_wan {
+		ct state established,related accept
+		meta l4proto udp counter accept
+		tcp dport { 53, 80, 443 } counter accept
+		meta l4proto { icmp, ipv6-icmp } counter accept
+		counter goto bloqueo_f18
+	}
+
+	chain bloqueo_f18 {
+		limit rate 10/second burst 50 packets log prefix "fw-drop F-18 " level info
+		counter drop
+	}
+
+	chain bloqueo_f20 {
+		limit rate 10/second burst 50 packets log prefix "fw-drop F-20 " level info
+		counter drop
+	}
+
+	chain bloqueo_f21 {
+		limit rate 10/second burst 50 packets log prefix "fw-drop F-21 " level info
+		counter drop
+	}
+}
+table bridge filtro_vms {
+	chain forward {
+		type filter hook forward priority filter; policy accept;
+		meta ibrname != "br-srv" accept
+		ct state established,related accept
+		ct state invalid counter drop
+		ether type arp accept
+		icmpv6 type { nd-neighbor-solicit, nd-neighbor-advert } accept
+		meta pkttype { broadcast, multicast } counter drop
+		ip saddr 10.20.20.12 ip daddr 10.20.20.11 tcp dport 5432 counter accept
+		ip6 saddr fd5a:fc7e:d716:20::12 ip6 daddr fd5a:fc7e:d716:20::11 tcp dport 5432 counter accept
+		ip saddr 10.20.20.11 ip daddr 10.20.20.12 tcp dport 22 counter accept
+		ip6 saddr fd5a:fc7e:d716:20::11 ip6 daddr fd5a:fc7e:d716:20::12 tcp dport 22 counter accept
+		limit rate 10/second burst 50 packets log prefix "fw-drop br-srv " level info
+		counter drop
 	}
 }
 table ip nat_kit {

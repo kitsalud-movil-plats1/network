@@ -10,6 +10,17 @@
   register: kit01_firewall_netbird_antes
   changed_when: false
 
+- name: Sondas en rojo antes de aplicar
+  ansible.builtin.shell: &kit01_firewall_rojas |
+    set -o pipefail
+    curl -sf -G --data-urlencode 'query=probe_success == 0' {{ kit01_firewall_prometheus }}/api/v1/query |
+      python3 -c 'import json,sys; print("\n".join(sorted(r["metric"]["job"] + " " + r["metric"]["instance"] for r in json.load(sys.stdin)["data"]["result"])))'
+  args:
+    executable: /bin/bash
+  register: kit01_firewall_rojas_antes
+  changed_when: false
+  when: kit01_firewall_sondas | bool
+
 # Lo activo, en un archivo que se puede cargar: cada tabla se declara, se
 # borra y se vuelve a crear. Una tabla que no existía solo se borra
 - name: Ruleset activo para la restauración
@@ -79,7 +90,7 @@
 
 - name: El ruleset activo es el del archivo
   ansible.builtin.shell: |
-    candidato=$(unshare --net sh -c 'nft -f /etc/nftables.conf && nft -s -t list ruleset')
+    candidato=$(unshare --net sh -c 'nft -f /etc/nftables.conf && { {% for t in kit01_firewall_tablas %}nft -s -t list table {{ t }} 2>/dev/null; {% endfor %}}')
     activo=$({% for t in kit01_firewall_tablas %}nft -s -t list table {{ t }} 2>/dev/null; {% endfor %})
     [ "$candidato" = "$activo" ]
   args:
@@ -102,6 +113,28 @@
   changed_when: false
   failed_when: kit01_firewall_netbird_estado.stdout is not search('Management:\s+Connected')
   when: kit01_netbird | bool
+
+# Las sondas se repiten cada 15 s; se espera a que todas pasen con el firewall nuevo
+- name: Sondas en rojo con el firewall nuevo
+  ansible.builtin.shell: *kit01_firewall_rojas
+  args:
+    executable: /bin/bash
+  register: kit01_firewall_rojas_despues
+  changed_when: false
+  retries: 6
+  delay: 10
+  until: kit01_firewall_rojas_despues.stdout_lines | difference(kit01_firewall_rojas_antes.stdout_lines) | length == 0
+  when: kit01_firewall_sondas | bool
+
+- name: Flujos en uso
+  ansible.builtin.shell: "{{ item.comando }}"
+  args:
+    executable: /bin/bash
+  delegate_to: "{{ item.equipo }}"
+  loop: "{{ kit01_firewall_comprobaciones }}"
+  loop_control:
+    label: "{{ item.equipo }}: {{ item.nombre }}"
+  changed_when: false
 
 # La reconexión puede tardar más que su timeout si la conexión anterior quedó
 # colgada. Solo vale lo comprobado si la restauración no actuó todavía

@@ -7,7 +7,8 @@ Firewall base de kit01 (D-02, secciones 6.3, 8.4 y 11 del documento). Una sola t
 | [`nftables.conf.j2`](nftables.conf.j2) | `/etc/nftables.conf` (`755`) | Tablas `inet filtro` e `ip nat_kit`. Los nombres de interfaz y las direcciones están en `define` al principio y salen del inventario (`red.yml`, `iface_wan` y `kit01_firewall_if_netbird`) |
 | [`quitar.nft`](quitar.nft) | `/etc/nftables/quitar.nft` | Borra solo las tablas de kit01. Lo usan la restauración programada y el `ExecStop` del servicio |
 | [`nftables.service.d/kit01.conf`](nftables.service.d/kit01.conf) | `/etc/systemd/system/nftables.service.d/kit01.conf` | Cambia el `ExecStop` de Ubuntu (`nft flush ruleset`) por `quitar.nft` |
-| [`ruleset-kit01.txt`](ruleset-kit01.txt) | - | Listado de las dos tablas aplicadas en kit01 (`nft -s list table ...`) |
+| [`flujos.yml`](flujos.yml) | - | Lista de flujos que prueba `platform/ansible/playbooks/verificar-flujos.yml`, con el origen, el destino, el puerto o eco y el resultado esperado |
+| [`ruleset-kit01.txt`](ruleset-kit01.txt) | - | Listado de las tablas aplicadas en kit01 (`nft -s list table ...`) |
 
 ## Convivencia con NetBird y libvirt
 
@@ -41,7 +42,11 @@ Un paquete tiene que pasar todas las cadenas del mismo gancho, las de iptables-n
 
 **Portal cautivo.** El set `portal_ok` (`type ether_addr`, `timeout 8h`) guarda las MAC que aceptaron las condiciones, y lo llena el servicio del portal. La cadena `portal_redireccion` (`nat`, prerouting) manda el HTTP de la Comunidad sin aceptar, hacia cualquier destino que no sea kit01, a `10.20.40.1` o `fd5a:fc7e:d716:40::1`. Los dos están en `inet filtro` porque un set solo se usa dentro de su tabla, y así falla cerrado, porque sin el set nadie de la Comunidad pasa.
 
-**Salida de kit01 (`output`).** Sin filtrar en esta base. La restricción de F-18 va en la matriz de flujos.
+**Salida de kit01 (`output`).** Hacia dentro del kit y por `wt0` no se filtra (F-02, F-13, F-14, F-25). Hacia `enp170s0` pasa por la cadena `salida_wan` (F-18), que deja conexiones establecidas, UDP a cualquier puerto (NetBird usa WireGuard, STUN e ICE con puertos variables, más DNS y NTP), TCP 53, 80 (apt) y 443, e ICMP. Lo demás va a `bloqueo_f18`.
+
+**Bloqueos registrados.** Las cadenas `bloqueo_f18`, `bloqueo_f20` y `bloqueo_f21` tienen su contador y registran con su propio prefijo (`fw-drop F-18 `, `fw-drop F-20 `, `fw-drop F-21 `, como mucho 10 por segundo) antes de descartar. F-20 es la Comunidad hacia la Interna, clinica01 y la gestión de kit01 (22 y 443), con portal aceptado o sin él; va antes del RST del portal, así P3 queda registrado. F-21 es el SSH de la Interna que no es admin hacia kit01 (por IPv6, de nadie) y el de toda la Interna hacia las VMs. La Interna llega por eco a las VMs (F-22).
+
+**Entre las VMs (`bridge filtro_vms`).** Lo que `br-srv` conmuta entre sus puertos no pasa por `inet filtro`. La cadena `forward` de la familia `bridge` solo mira `br-srv` (`meta ibrname`) y, con conntrack (`nf_conntrack_bridge`), deja las conexiones establecidas, ARP y la resolución de vecinos de IPv6, comunidad01 hacia el 5432 de clinica01 (F-11) y clinica01 hacia el 22 de comunidad01 (F-12), en IPv4 e IPv6. El resto del broadcast y el multicast se descarta sin registrar, y lo demás se registra con `fw-drop br-srv ` y se descarta. Lo que va de las VMs a kit01 o sale por él lo sigue filtrando `inet filtro`.
 
 **Registro.** Lo que no se acepta en `input` y `forward` se registra en el kernel con el prefijo `fw-drop ` (como máximo 10 por segundo, ráfagas de 50) y se descarta.
 
@@ -69,6 +74,9 @@ El rol aplica solo cuando cambia el ruleset efectivo (D-23, `AGENTS.md` sección
 Para comparar a mano un archivo con lo activo sin aplicarlo, se compara `sudo unshare --net sh -c 'nft -f <archivo> && nft -s list ruleset'` con `sudo nft -s list table inet filtro; sudo nft -s list table ip nat_kit`.
 
 ## Cómo se verifica
+
+**Matriz completa.** Desde `platform/ansible/`, `ansible-playbook playbooks/verificar-flujos.yml` prueba cada flujo de [`flujos.yml`](flujos.yml) desde su origen en IPv4 e IPv6. Los orígenes son kit01, las dos VMs, `prueba01` (antes y después de aceptar el portal) y sw01 (la Interna sin IP de administración). Enciende y apaga `prueba01` y le quita la autorización del portal al final. Termina con una línea `OK` o `FALLA` por prueba, los contadores de `bloqueo_f18`, `bloqueo_f20`, `bloqueo_f21` y de la tabla `bridge`, y cuántas líneas de cada prefijo llegaron al log, y falla si alguna prueba no dio lo esperado. Una conexión TCP es `abierto` si conecta, `rechazado` si recibe RST (el 443 del portal) y `sin respuesta` si se descarta.
+
 
 | Comando | Resultado esperado |
 |---|---|
