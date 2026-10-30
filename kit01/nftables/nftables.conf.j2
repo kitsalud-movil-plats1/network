@@ -35,6 +35,14 @@ table inet filtro
 delete table inet filtro
 
 table inet filtro {
+	# MAC de la Comunidad que aceptaron el portal cautivo (R5, D-22, 6.4). El
+	# servicio del portal las agrega; vencen solas
+	set {{ portal_set }} {
+		type ether_addr
+		flags timeout
+		timeout {{ portal_timeout }}
+	}
+
 	chain input {
 		type filter hook input priority filter; policy drop;
 
@@ -57,6 +65,10 @@ table inet filtro {
 		# DHCPv4 y DHCPv6 stateless (F-04)
 		iifname { $if_interna, $if_comunidad } udp dport 67 counter accept
 		iifname { $if_interna, $if_comunidad } ip6 saddr fe80::/10 udp dport 547 counter accept
+
+		# Página del portal cautivo, solo por HTTP, para la Comunidad (F-08)
+		iifname $if_comunidad ip daddr $gw_com4 tcp dport 80 counter accept
+		iifname $if_comunidad ip6 daddr $gw_com6 tcp dport 80 counter accept
 
 		# DNS y NTP en la IP de servicios .10 (F-03)
 		iifname { $if_interna, $if_comunidad, $if_servidores } ip daddr $srv4 meta l4proto { tcp, udp } th dport 53 counter accept
@@ -104,8 +116,26 @@ table inet filtro {
 		iifname $if_interna oifname $if_servidores ip daddr $comunidad4 tcp dport { 80, 443 } counter accept
 		iifname $if_interna oifname $if_servidores ip6 daddr $comunidad6 tcp dport { 80, 443 } counter accept
 
+		# Comunidad que aceptó el portal hacia la biblioteca, los videos y el registro (F-09)
+		iifname $if_comunidad oifname $if_servidores ether saddr @{{ portal_set }} ip daddr $comunidad4 tcp dport { 80, 443 } counter accept
+		iifname $if_comunidad oifname $if_servidores ether saddr @{{ portal_set }} ip6 daddr $comunidad6 tcp dport { 80, 443 } counter accept
+
+		# Comunidad que aceptó el portal hacia Internet, solo IPv4 con NAT (F-10)
+		iifname $if_comunidad oifname $if_wan ether saddr @{{ portal_set }} meta nfproto ipv4 counter accept
+
+		# HTTPS de la Comunidad sin aceptar: se rechaza enseguida, porque el portal va por HTTP
+		iifname $if_comunidad ether saddr != @{{ portal_set }} tcp dport 443 counter reject with tcp reset
+
 		limit rate 10/second burst 50 packets log prefix "fw-drop " level info
 		counter
+	}
+
+	# El HTTP de la Comunidad sin aceptar va al portal en kit01, en IPv4 e IPv6 (6.4)
+	chain portal_redireccion {
+		type nat hook prerouting priority dstnat; policy accept;
+
+		iifname $if_comunidad ether saddr != @{{ portal_set }} fib daddr type != local meta nfproto ipv4 tcp dport 80 counter dnat ip to $gw_com4
+		iifname $if_comunidad ether saddr != @{{ portal_set }} fib daddr type != local meta nfproto ipv6 tcp dport 80 counter dnat ip6 to $gw_com6
 	}
 
 	# La salida de kit01 no se filtra en esta base; F-18 se aplica en la matriz de flujos
