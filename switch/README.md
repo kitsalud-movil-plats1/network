@@ -53,9 +53,9 @@ Syslog: después de entrar a sw01, `sudo tail /var/log/kitsalud/sw01/syslog.log`
 
 En sw01: `/interface bridge port print`, `/interface bridge vlan print`, `/ip settings print` (`ip-forward: no`), `/ipv6 settings print` (`forward: no`), `/ip address print` (solo la gestión).
 
-## Pruebas en la visita
+## Pruebas opcionales en la visita
 
-Necesitan un equipo en un puerto de acceso. Con una laptop Linux en ether4 (VLAN 10, sin etiqueta) y un cliente en ether5 o por el SSID de la Clínica.
+No son parte de las pruebas de aceptación del enunciado (P1-P13); confirman en la práctica el snooping y el filtro de RA. Necesitan un equipo en un puerto de acceso. Con una laptop Linux en ether4 (VLAN 10, sin etiqueta) y un cliente en ether5 o por el SSID de la Clínica.
 
 1. **DHCP falso.** En la laptop, `sudo ip addr add 10.20.10.240/24 dev <if>` y `sudo dnsmasq --no-daemon --interface=<if> --dhcp-range=192.168.99.10,192.168.99.50,5m --port=0`. El cliente pide dirección (`sudo dhclient -v` o reconectar el Wi-Fi) y tiene que recibir una de `10.20.10.100-199` de Kea, nunca `192.168.99.x`. dnsmasq ve los DISCOVER solo si llegan, y sus OFFER no salen de sw01.
 2. **RA falso.** En la laptop, `radvd` anunciando `2001:db8:bad::/64`, o `sudo python3 -c` con scapy enviando un RA a `ff02::1`. En el cliente, `ip -6 addr` no debe mostrar `2001:db8:bad::` y `ip -6 route` solo `default via fe80::1`. En sw01, el contador de la regla de `/interface bridge filter print stats` sube.
