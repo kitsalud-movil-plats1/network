@@ -11,6 +11,8 @@ AP=http://10.20.10.3
 if [ -z "${AP_CLAVE:-}" ]; then
   ESTE=$(cd "$(dirname "$0")" && pwd)/$(basename "$0")
   cd "${ANSIBLE_DIR:-$(dirname "$ESTE")/../../platform/ansible}" || exit 2
+  # Sin esto Ansible escribe el comando, con la clave, en el syslog de kit01
+  export ANSIBLE_NO_TARGET_SYSLOG=True
   ansible kit01 -m copy -a "src=$ESTE dest=/tmp/revisar-ap.sh mode=0700" >/dev/null || exit 2
   ansible kit01 -m shell -a "AP_CLAVE='{{ vault_ap01_password }}' /tmp/revisar-ap.sh; e=\$?; rm -f /tmp/revisar-ap.sh; exit \$e" 2>&1 | sed '1{/ | /d;}'
   exit "${PIPESTATUS[0]}"
