@@ -5,8 +5,8 @@ La Comunidad acepta las condiciones antes de usar la red, y el portal nunca da a
 | Archivo | Dónde queda en kit01 | Qué es |
 |---|---|---|
 | [`portal.nginx.j2`](portal.nginx.j2) | `/etc/nginx/sites-available/portal` (enlazado en `sites-enabled`) | Sitio de nginx solo en `10.20.40.1:80` y `[fd5a:fc7e:d716:40::1]:80`. Cualquier nombre que no sea `portal.salud.movil` recibe un `302` hacia `http://portal.salud.movil/` |
-| [`paginas/`](paginas/) | `/usr/share/kitsalud-portal/` | `condiciones.html` (`/`, con el botón «Acepto»), `inicio.html` (`/inicio`, con los íconos de biblioteca, videos y prerregistro y el enlace a `ca.salud.movil`) y `estilo.css` |
-| [`portal.py`](portal.py) | `/usr/local/lib/kitsalud-portal/portal.py` | Servicio `kitsalud-portal` en `127.0.0.1:8081` que atiende el `POST /aceptar` |
+| [`paginas/`](paginas/) | `/usr/share/kitsalud-portal/` | `condiciones.html` (`/` sin haber aceptado, con el botón «Acepto»), `inicio.html` (`/inicio`, y `/` después de aceptar, con los íconos de biblioteca, videos y prerregistro, cómo volver al menú y el enlace a `ca.salud.movil`) y `estilo.css` |
+| [`portal.py`](portal.py) | `/usr/local/lib/kitsalud-portal/portal.py` | Servicio `kitsalud-portal` en `127.0.0.1:8081` que atiende el `POST /aceptar` y decide qué página muestra `GET /` |
 
 Lo instala el rol `kit01_portal` de [`../../ansible/roles/`](../../ansible/roles/). El set, la redirección y los flujos son parte del firewall ([`../nftables/`](../nftables/)). Las variables (`portal_set`, `portal_timeout` y `portal_app`) están en `platform/ansible/inventarios/kit/group_vars/all/portal.yml`.
 
@@ -17,6 +17,7 @@ Lo instala el rol `kit01_portal` de [`../../ansible/roles/`](../../ansible/roles
 3. **Aceptación.** El formulario hace `POST /aceptar`. nginx lo pasa al servicio con la IP del cliente en `X-Real-IP`. El servicio comprueba que la IP sea de la Comunidad, busca su MAC en la tabla de vecinos de `br-com` (`ip -j neigh`), que vale para IPv4 y para IPv6, y la agrega al set con `destroy element` y `add element`. Si ya estaba, el plazo empieza de nuevo. Responde `303` hacia `/inicio`.
 4. **Ya autorizado.** Con la MAC en el set llega a comunidad01 por el 80 y el 443 en IPv4 e IPv6 (F-09) y, si hay Internet, sale por IPv4 con NAT (F-10). IPv6 no sale a Internet, porque la red es ULA. Nunca llega a la Interna, a clinica01 ni al SSH o el monitoreo de kit01.
 5. **Vencimiento.** El set tiene `timeout 8h`, así que cada MAC sale sola a las 8 horas y el cliente vuelve a ver el portal. Las conexiones que ya estaban abiertas siguen hasta cerrarse.
+6. **Volver al menú.** nginx pasa también el `GET /` al servicio, que busca la MAC del cliente y contesta con `X-Accel-Redirect` el menú (`inicio.html`) si ya está en el set o las condiciones si no. Así `http://portal.salud.movil` siempre lleva al menú a quien ya aceptó. Si el servicio no responde, nginx muestra las condiciones.
 
 **Falla cerrada.** Sin el servicio, nadie nuevo queda autorizado, y sin el set (o con el set vacío) nadie de la Comunidad pasa de kit01. Las autorizaciones no sobreviven a un reinicio de kit01, porque el set arranca vacío; hay que volver a aceptar.
 

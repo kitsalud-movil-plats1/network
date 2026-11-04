@@ -15,7 +15,16 @@ server {
 		return 302 http://portal.{{ dominio }}/;
 	}
 
+	# El servicio decide la página: el menú si el equipo ya aceptó y las
+	# condiciones si no. Si el servicio no responde, las condiciones
 	location = / {
+		proxy_pass http://{{ portal_app }};
+		proxy_set_header X-Real-IP $remote_addr;
+		proxy_intercept_errors on;
+		error_page 502 503 504 = @condiciones;
+	}
+
+	location @condiciones {
 		try_files /condiciones.html =404;
 	}
 

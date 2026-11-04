@@ -7,6 +7,10 @@ la agrega al set de nftables, que la deja autorizada por su timeout (8 h). Si
 ya estaba, la vuelve a agregar y el plazo empieza de nuevo. La MAC sale del
 kernel, nunca de lo que mande el cliente.
 
+nginx también le pasa el GET /, y el servicio contesta con X-Accel-Redirect qué
+página mostrar. El menú de servicios si la MAC ya está en el set y las
+condiciones si no, así portal.salud.movil sirve para volver al menú.
+
 Solo usa la biblioteca estándar, así que funciona sin Internet (R-05).
 """
 import ipaddress
@@ -21,6 +25,8 @@ INTERFAZ = os.environ.get("PORTAL_INTERFAZ", "br-com")
 SET = os.environ.get("PORTAL_SET", "inet filtro portal_ok")
 REDES = [ipaddress.ip_network(r) for r in os.environ.get("PORTAL_REDES", "").split()]
 INICIO = os.environ.get("PORTAL_INICIO", "/inicio")
+PAGINA_INICIO = os.environ.get("PORTAL_PAGINA_INICIO", "/inicio.html")
+PAGINA_CONDICIONES = os.environ.get("PORTAL_PAGINA_CONDICIONES", "/condiciones.html")
 
 
 def registrar(mensaje):
@@ -47,6 +53,12 @@ def autorizar(mac):
     return subprocess.run(["nft", orden], capture_output=True, text=True, check=False)
 
 
+def autorizada(mac):
+    familia, tabla, nombre = SET.split()
+    orden = "get element %s %s %s { %s }" % (familia, tabla, nombre, mac)
+    return subprocess.run(["nft", orden], capture_output=True, text=True, check=False).returncode == 0
+
+
 class Portal(BaseHTTPRequestHandler):
     server_version = "portal"
     sys_version = ""
@@ -61,6 +73,23 @@ class Portal(BaseHTTPRequestHandler):
         self.send_header("Cache-Control", "no-store")
         self.end_headers()
         self.wfile.write(cuerpo)
+
+    def do_GET(self):
+        if self.path != "/":
+            return self.responder(404, "No existe")
+        pagina = PAGINA_CONDICIONES
+        try:
+            ip = ipaddress.ip_address(self.headers.get("X-Real-IP", ""))
+        except ValueError:
+            ip = None
+        if ip and any(ip in red for red in REDES):
+            mac = mac_de(ip)
+            if mac and autorizada(mac):
+                pagina = PAGINA_INICIO
+        self.send_response(200)
+        self.send_header("X-Accel-Redirect", pagina)
+        self.send_header("Content-Length", "0")
+        self.end_headers()
 
     def do_POST(self):
         if self.path != "/aceptar":
