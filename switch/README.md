@@ -11,7 +11,8 @@ Switch L2 del kit. La ficha del equipo está en `workspace/contexto/equipos/sw01
 | ether1 | `ether1-kit01` | kit01 `enp171s0` (futuro `lan0`) | 10, 40 y 20 etiquetadas; solo tramas etiquetadas | Enlace 1 Gb/s |
 | ether2 | `ether2-ap01` | AP (puerto LAN del inyector PoE) | Híbrido, 10 y 40 etiquetadas hacia el AP; desde el AP acepta etiquetadas y sin etiqueta (PVID 10) | Enlace 100 Mb/s |
 | ether3 | `ether3-laptop` | - | 10 y 20 etiquetadas | Deshabilitado |
-| ether4-ether8 | `ether4-interna` … `ether8-interna` | Estaciones (sin conectar) | Acceso VLAN 10 | Habilitados |
+| ether4 | `ether4-interna` | Puerto de administración. Cualquier equipo conectado recibe una dirección `.10-.28` | Acceso VLAN 10 | Habilitado |
+| ether5-ether8 | `ether5-interna` … `ether8-interna` | Estaciones (sin conectar) | Acceso VLAN 10 | Habilitados |
 | ether9-ether16, SFP+ | - | - | - | Deshabilitados, fuera del bridge |
 
 ether2 es híbrido porque la gestión del AP responde sin etiqueta.
@@ -22,6 +23,7 @@ ether2 es híbrido porque la gestión del AP responde sin etiqueta.
 - Gestión en `vlan10-Interna` sobre el bridge, con `10.20.10.2/24` y `fd5a:fc7e:d716:10::2/64`; ruta por defecto IPv4 a `10.20.10.1` e IPv6 a `fe80::1%vlan10-Interna`.
 - Reenvío IPv4 e IPv6 desactivado; sin aceptar RA.
 - Servicios telnet, FTP, web y API apagados; SSH y Winbox solo desde `10.20.10.1` y las IPs de administración `10.20.10.10-29`, que son IPv4, así que por IPv6 no entra nadie.
+- **Opción 82.** Con `add-dhcp-option82=yes`, sw01 agrega a cada solicitud DHCP el puerto de origen. En RouterOS 7.13.5 el Remote-ID es el nombre del puerto (`ether4-interna`) y el Circuit-ID tiene la forma `sw01 eth 0/2:40`. Kea usa el Remote-ID para reconocer el puerto de administración.
 - **DHCP snooping** en `bridge-kit`, con `ether1-kit01` como único puerto de confianza (`trusted=yes`). Las respuestas de un servidor DHCP que entren por cualquier otro puerto se descartan, y las peticiones de los clientes solo salen por ether1, hacia Kea en kit01. Sin opción 82.
 - **RA desde los puertos de acceso.** La lista de interfaces `acceso` tiene ether2 (el AP, con los clientes Wi-Fi de las dos VLAN) y ether4 a ether8. Una regla de `/interface bridge filter` descarta en `forward` el IPv6 hacia `33:33:00:00:00:01` (la MAC de `ff02::1`, todos los nodos) que entre por esos puertos, que es donde van los RA. RouterOS no tiene RA Guard ni distingue el tipo de ICMPv6 en el bridge, así que la regla también descarta los NA no solicitados de los clientes, que no hacen falta. Los RA de kit01 entran por ether1 y no se tocan.
 - **Puertos de acceso por la CPU.** El chip (Marvell 88E6191X) no acepta reglas de switch, y con conmutación por hardware el filtro del bridge no ve el multicast. Por eso ether2 y ether4 a ether8 tienen `hw=no`. ether1 sigue con conmutación por hardware. Con el AP de 100 Mb/s y pocas estaciones, la CPU del CCR2004 queda cerca de 0 %.

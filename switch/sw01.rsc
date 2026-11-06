@@ -3,7 +3,7 @@
 #
 # model = CCR2004-16G-2S+
 # serial number = HGA09ZBSP3T
-/interface bridge add dhcp-snooping=yes name=bridge-kit vlan-filtering=yes
+/interface bridge add add-dhcp-option82=yes dhcp-snooping=yes name=bridge-kit vlan-filtering=yes
 /interface ethernet set [ find default-name=ether1 ] name=ether1-kit01
 /interface ethernet set [ find default-name=ether2 ] name=ether2-ap01
 /interface ethernet set [ find default-name=ether3 ] disabled=yes name=ether3-laptop
