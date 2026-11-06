@@ -25,6 +25,19 @@ Lo instala el rol `kit01_portal` de [`../../ansible/roles/`](../../ansible/roles
 
 **Aplicar el firewall.** `kit01_firewall` ignora el contenido del set al comparar (`nft -t`) y, cuando tiene que aplicar, vuelve a agregar cada MAC con el tiempo que le quedaba, en el mismo comando que recrea la tabla. Así aplicar el firewall no desconecta a la Comunidad.
 
+## Estado de los servicios
+
+El menú tiene un apartado con los servicios que usa la comunidad, para que sepa si el problema es del kit y avise al personal. `estado.js` pregunta a `GET /estado` cada 30 s, y `portal.py` lo arma con `probe_success` de Prometheus.
+
+| Estado | Cuándo | Texto |
+|---|---|---|
+| Verde | Todas las sondas del servicio responden | Funciona |
+| Amarillo | Responden algunas, por ejemplo solo IPv4 | Funciona con fallas |
+| Rojo | No responde ninguna | No funciona |
+| Sin datos | Prometheus no responde o no hay sondas | Sin datos |
+
+Con amarillo o rojo el apartado se abre solo y pide avisar al personal de la brigada. La lista está en `kit01_portal_servicios`, con nombres para la comunidad. La respuesta no trae direcciones, equipos ni nombres de programas, y se guarda 15 s para que los clientes no lleguen hasta Prometheus, que sigue solo en `127.0.0.1`. Como las sondas corren cada pocos segundos, un cambio se ve en menos de un minuto.
+
 ## Cómo se despliega
 
 Desde `platform/ansible/`:

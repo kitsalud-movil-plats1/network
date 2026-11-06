@@ -10,6 +10,8 @@ Environment=PORTAL_ESCUCHA={{ portal_app }}
 Environment=PORTAL_INTERFAZ={{ kit01_portal_interfaz }}
 Environment="PORTAL_SET=inet filtro {{ portal_set }}"
 Environment="PORTAL_REDES={{ kit01_portal_redes | join(' ') }}"
+Environment=PORTAL_PROMETHEUS={{ monitoreo_prometheus }}
+Environment="PORTAL_SERVICIOS={% for s in kit01_portal_servicios %}{{ s.sonda }}={{ s.nombre }}{{ ';' if not loop.last }}{% endfor %}"
 Restart=on-failure
 # Sin usuario fijo y solo con el permiso de agregar elementos a nftables
 DynamicUser=yes

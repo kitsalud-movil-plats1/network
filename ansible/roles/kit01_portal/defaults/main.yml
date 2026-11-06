@@ -7,3 +7,10 @@ kit01_portal_paginas: /usr/share/kitsalud-portal
 kit01_portal_app: /usr/local/lib/kitsalud-portal/portal.py
 kit01_portal_interfaz: "{{ redes.comunidad.interfaz }}"
 kit01_portal_redes: ["{{ redes.comunidad.ipv4 }}", "{{ redes.comunidad.ipv6 }}"]
+# Servicios del estado del menú: etiqueta "servicio" de las sondas y nombre para la
+# comunidad. No se muestran nombres de programas ni equipos
+kit01_portal_servicios:
+  - { sonda: biblioteca, nombre: Biblioteca de salud }
+  - { sonda: videos, nombre: Videos }
+  - { sonda: registro, nombre: Prerregistro }
+  - { sonda: dns, nombre: Red del kit }
