@@ -1,0 +1,24 @@
+# {{ ansible_managed }} (rol kit01_vecinos)
+[Unit]
+Description=Aprende los vecinos IPv6 de los clientes Wi-Fi
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+ExecStart=/usr/bin/python3 -u {{ kit01_vecinos_app }} {{ kit01_vecinos_redes | join(' ') }}
+Restart=always
+RestartSec=5
+# Sin usuario fijo. Lee tramas y cambia la tabla de vecinos, nada más
+DynamicUser=yes
+AmbientCapabilities=CAP_NET_RAW CAP_NET_ADMIN
+CapabilityBoundingSet=CAP_NET_RAW CAP_NET_ADMIN
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+RestrictAddressFamilies=AF_PACKET AF_NETLINK AF_UNIX
+
+[Install]
+WantedBy=multi-user.target

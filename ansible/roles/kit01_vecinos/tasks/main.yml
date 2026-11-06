@@ -1,0 +1,27 @@
+---
+- name: Script que aprende los vecinos IPv6
+  ansible.builtin.copy:
+    src: "{{ kit01_vecinos_fuente }}/kit-vecinos.py"
+    dest: "{{ kit01_vecinos_app }}"
+    owner: root
+    group: root
+    mode: "0755"
+  notify: Reiniciar kit-vecinos
+
+- name: Unidad del servicio
+  ansible.builtin.template:
+    src: kit-vecinos.service.j2
+    dest: /etc/systemd/system/kit-vecinos.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reiniciar kit-vecinos
+
+# Con --check en la primera ejecución la unidad todavía no existe
+- name: Servicio activo al arrancar
+  ansible.builtin.systemd_service:
+    name: kit-vecinos
+    enabled: true
+    state: started
+    daemon_reload: true
+  ignore_errors: "{{ ansible_check_mode }}"
