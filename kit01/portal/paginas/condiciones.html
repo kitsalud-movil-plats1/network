@@ -3,21 +3,25 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Brigada de salud</title>
+<title>Red de la brigada de salud</title>
 <link rel="stylesheet" href="/estilo.css">
 </head>
 <body>
+<header class="barra"><p class="marca"><svg viewBox="0 0 32 32" aria-hidden="true"><rect x="1" y="1" width="30" height="30" rx="9" fill="#7a7fd1"/><path d="M13 7h6v6h6v6h-6v6h-6v-6H7v-6h6z" fill="#fff"/></svg> Kit de salud móvil</p></header>
 <main>
-<h1>Bienvenido a la red de la brigada de salud</h1>
-<p>Con esta red puede leer la biblioteca de salud, ver videos y llenar su prerregistro para la consulta.</p>
-<ul>
-<li>Es una red local. Puede que no haya Internet.</li>
-<li>Use la red con respeto. No comparta datos de otras personas.</li>
-<li>El acceso dura 8 horas. Después vuelve a ver esta página.</li>
+<div class="panel">
+<h1><span class="saludo">Hola,</span> bienvenido a la brigada de salud</h1>
+<img class="ilustracion" src="/ilustraciones/red.svg" alt="">
+<p class="entrada">Con esta red puede leer la biblioteca de salud, ver videos y llenar su prerregistro para la consulta.</p>
+<ul class="reglas">
+<li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 9a14 14 0 0 1 19 0M5.5 12.5a9.5 9.5 0 0 1 13 0M8.8 16a4.8 4.8 0 0 1 6.4 0"/><circle cx="12" cy="19.3" r="1" fill="currentColor"/></svg><span>Es una red local. Puede que no haya Internet.</span></li>
+<li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3 19.5c.6-3.3 3-5.2 6-5.2s5.4 1.9 6 5.2"/><circle cx="17" cy="9" r="2.4"/><path d="M16.5 14.4c2.4.1 4.1 1.7 4.5 4.6"/></svg><span>Use la red con respeto. No comparta datos de otras personas.</span></li>
+<li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg><span>El acceso dura 8 horas. Después vuelve a ver esta página.</span></li>
 </ul>
 <form method="post" action="/aceptar">
-<button type="submit">Acepto</button>
+<button type="submit">Acepto y quiero entrar</button>
 </form>
+</div>
 </main>
 </body>
 </html>
