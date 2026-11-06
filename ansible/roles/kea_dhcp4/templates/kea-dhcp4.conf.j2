@@ -8,18 +8,27 @@
        "interface": red.interfaz,
        "pools": [{"pool": red.pool4}],
        "valid-lifetime": red.prestamo4,
-       "option-data": [{"name": "routers", "data": red.gw4}],
-       "reservations": []
+       "option-data": [{"name": "routers", "data": red.gw4}]
      } %}
 {%   set _ = subredes.append(subred) %}
 {% endfor %}
-{% set reservas = [] %}
-{% for x in dhcp_reservas %}
-{%   set _ = reservas.append({"hw-address": x.mac, "ip-address": x.ipv4, "hostname": x.nombre}) %}
-{% endfor %}
-{% for s in subredes %}
-{%   if s.interface == redes[kea_dhcp4_red_reservas].interfaz %}{% set _ = s.update({"reservations": reservas}) %}{% endif %}
-{% endfor %}
+{# sw01 informa el nombre del puerto en la subopción 2 (Remote-ID) de la opción 82.
+   Cualquier equipo conectado a un puerto de administración recibe una dirección
+   del pool de administración #}
+{% set clases = [] %}
+{% if dhcp_puertos_admin %}
+{%   set prueba = dhcp_puertos_admin | map('regex_replace', '^(.*)$', "relay4[2].hex == '\\1'") | join(' or ') %}
+{%   set _ = clases.append({"name": "puerto_admin", "test": prueba, "valid-lifetime": dhcp_prestamo_admin}) %}
+{%   set _ = clases.append({"name": "puerto_normal", "test": "not member('puerto_admin')"}) %}
+{%   for s in subredes %}
+{%     if s.interface == redes[kea_dhcp4_red_admin].interfaz %}
+{%       set _ = s.update({"pools": [
+           {"pool": dhcp_pool_admin, "client-class": "puerto_admin"},
+           {"pool": redes[kea_dhcp4_red_admin].pool4, "client-class": "puerto_normal"}
+         ]}) %}
+{%     endif %}
+{%   endfor %}
+{% endif %}
 {{ {
   "Dhcp4": {
     "interfaces-config": {
@@ -35,6 +44,7 @@
       {"name": "domain-search", "data": dominio},
       {"name": "ntp-servers", "data": servicios_kit01.ipv4}
     ],
+    "client-classes": clases,
     "subnet4": subredes,
     "loggers": [{
       "name": "kea-dhcp4",

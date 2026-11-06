@@ -9,7 +9,7 @@ Servidores DHCPv4 y DHCPv6 sin estado del kit. Los instalan y configuran los rol
 | Interna (`lan0.10`) | Pool `10.20.10.100 - 10.20.10.199`, préstamo de 8 h, gateway `10.20.10.1` |
 | Comunidad (`br-com`) | Pool `10.20.40.100 - 10.20.40.250`, préstamo de 1 h, gateway `10.20.40.1` |
 | Opciones | DNS `10.20.20.10`, dominio y búsqueda `salud.movil`, NTP `10.20.20.10` (opción 42) |
-| Reservas | `dhcp_reservas` (MAC, IP en `10.20.10.10-29`, nombre), para las estaciones de administración. En el kit está vacía hasta tener las MAC de las laptops del grupo |
+| Administración | Cualquier equipo conectado a un puerto de `dhcp_puertos_admin` recibe una dirección de `dhcp_pool_admin` (`10.20.10.10 - 10.20.10.28`), con préstamo de 1 h. Kea reconoce el puerto por la opción 82 que agrega sw01 (clase `puerto_admin`, `relay4[2].hex`). Los demás clientes de la Interna usan el pool normal (clase `puerto_normal`). No hay reservas por MAC |
 | Préstamos | `memfile` en `/var/lib/kea/kea-leases4.csv` |
 | Log | Al journal, con nivel INFO (`DHCP4_LEASE_ALLOC` por cada asignación) |
 | DHCPv6 | Sin estado y sin pools: responde los `Information-Request` en `lan0.10` y `br-com` con DNS `fd5a:fc7e:d716:20::10`, búsqueda `salud.movil` y NTP `fd5a:fc7e:d716:20::10` (opción `sntp-servers`, enviada siempre). Kea responde desde la primera link-local de la interfaz; en kit01 es `fe80::1` |
@@ -27,12 +27,13 @@ ansible-playbook playbooks/dhcp.yml
 - **Validación.** Cada configuración se valida con `kea-dhcp4 -t` antes de escribirse. AppArmor solo deja leer a `kea-dhcp4` en `/etc/kea/`, así que la validación usa una copia temporal ahí.
 - **Apt solo si hace falta.** El rol usa apt solo si el paquete falta o no tiene la versión fija, así no hace `apt update` en cada ejecución.
 
-Para reservar una estación de administración se agrega a `inventarios/kit/group_vars/all/dhcp.yml` y se vuelve a ejecutar el playbook:
+Para agregar un puerto de administración se agrega su nombre en `inventarios/kit/group_vars/all/dhcp.yml` y se vuelve a ejecutar el playbook. sw01 debe tener `add-dhcp-option82=yes`.
 
 ```yaml
-dhcp_reservas:
-  - { nombre: admin-ana, mac: "aa:bb:cc:dd:ee:ff", ipv4: 10.20.10.10 }
+dhcp_puertos_admin: ["ether4-interna", "ether5-interna"]
 ```
+
+La `.29` queda fuera del pool, para usarla como dirección fija a mano si el DHCP falla.
 
 ## Cómo se verifica
 
