@@ -1,0 +1,8 @@
+---
+# Script y redes que atiende. Cada red es puerto=interfaz=prefijo. En la Comunidad
+# el puerto es el del bridge, porque por ahí entran los clientes del Wi-Fi
+kit01_vecinos_fuente: "{{ playbook_dir }}/../../../network/kit01/vecinos"
+kit01_vecinos_app: /usr/local/sbin/kit-vecinos
+kit01_vecinos_redes:
+  - "{{ redes.interna.interfaz }}={{ redes.interna.interfaz }}={{ redes.interna.ipv6 }}"
+  - "lan0.40={{ redes.comunidad.interfaz }}={{ redes.comunidad.ipv6 }}"
