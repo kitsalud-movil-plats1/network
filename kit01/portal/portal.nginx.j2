@@ -32,6 +32,17 @@ server {
 		try_files /inicio.html =404;
 	}
 
+	# Estado de los servicios para el menú. Si el servicio no responde, la página
+	# lo muestra como sin datos
+	location = /estado {
+		limit_except GET {
+			deny all;
+		}
+		proxy_pass http://{{ portal_app }};
+		proxy_connect_timeout 3s;
+		proxy_read_timeout 5s;
+	}
+
 	location = /aceptar {
 		limit_except POST {
 			deny all;

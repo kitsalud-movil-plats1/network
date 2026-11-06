@@ -11,6 +11,10 @@ nginx también le pasa el GET /, y el servicio contesta con X-Accel-Redirect qu�
 página mostrar. El menú de servicios si la MAC ya está en el set y las
 condiciones si no, así portal.salud.movil sirve para volver al menú.
 
+GET /estado responde el estado de los servicios que usa la comunidad, a partir de
+las sondas de Prometheus. No dice direcciones ni nombres internos, y guarda la
+respuesta unos segundos para que los clientes no lleguen hasta Prometheus.
+
 Solo usa la biblioteca estándar, así que funciona sin Internet (R-05).
 """
 import ipaddress
@@ -18,6 +22,10 @@ import json
 import os
 import subprocess
 import sys
+import threading
+import time
+import urllib.parse
+import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 ESCUCHA = os.environ.get("PORTAL_ESCUCHA", "127.0.0.1:8081")
@@ -27,6 +35,13 @@ REDES = [ipaddress.ip_network(r) for r in os.environ.get("PORTAL_REDES", "").spl
 INICIO = os.environ.get("PORTAL_INICIO", "/inicio")
 PAGINA_INICIO = os.environ.get("PORTAL_PAGINA_INICIO", "/inicio.html")
 PAGINA_CONDICIONES = os.environ.get("PORTAL_PAGINA_CONDICIONES", "/condiciones.html")
+PROMETHEUS = os.environ.get("PORTAL_PROMETHEUS", "127.0.0.1:9090")
+# servicio de las sondas=nombre para la comunidad, separados por punto y coma
+SERVICIOS = [par.split("=", 1) for par in os.environ.get("PORTAL_SERVICIOS", "").split(";") if par]
+VIGENCIA_S = 15
+
+_estado = {"hasta": 0, "datos": None}
+_candado = threading.Lock()
 
 
 def registrar(mensaje):
@@ -59,6 +74,41 @@ def autorizada(mac):
     return subprocess.run(["nft", orden], capture_output=True, text=True, check=False).returncode == 0
 
 
+def color(valores):
+    """Verde si todas las sondas responden, rojo si ninguna y amarillo si algunas."""
+    if not valores:
+        return "desconocido"
+    if all(valores):
+        return "verde"
+    return "amarillo" if any(valores) else "rojo"
+
+
+def consultar_sondas():
+    nombres = "|".join(clave for clave, _ in SERVICIOS)
+    consulta = urllib.parse.urlencode({"query": 'probe_success{servicio=~"%s"}' % nombres})
+    with urllib.request.urlopen("http://%s/api/v1/query?%s" % (PROMETHEUS, consulta), timeout=2) as r:
+        resultado = json.load(r)["data"]["result"]
+    sondas = {clave: [] for clave, _ in SERVICIOS}
+    for sonda in resultado:
+        sondas[sonda["metric"]["servicio"]].append(sonda["value"][1] == "1")
+    return sondas
+
+
+def estado_servicios():
+    with _candado:
+        ahora = time.monotonic()
+        if ahora < _estado["hasta"]:
+            return _estado["datos"]
+        try:
+            sondas = consultar_sondas()
+        except (OSError, ValueError, KeyError) as error:
+            registrar("sin estado de los servicios: %s" % error)
+            sondas = {}
+        servicios = [{"nombre": nombre, "estado": color(sondas.get(clave))} for clave, nombre in SERVICIOS]
+        _estado.update(hasta=ahora + VIGENCIA_S, datos={"servicios": servicios})
+        return _estado["datos"]
+
+
 class Portal(BaseHTTPRequestHandler):
     server_version = "portal"
     sys_version = ""
@@ -74,7 +124,18 @@ class Portal(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(cuerpo)
 
+    def responder_json(self, datos):
+        cuerpo = json.dumps(datos, ensure_ascii=False).encode()
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Length", str(len(cuerpo)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(cuerpo)
+
     def do_GET(self):
+        if self.path == "/estado":
+            return self.responder_json(estado_servicios())
         if self.path != "/":
             return self.responder(404, "No existe")
         pagina = PAGINA_CONDICIONES

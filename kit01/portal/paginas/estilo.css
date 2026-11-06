@@ -169,3 +169,16 @@ textarea { border-radius: 22px; resize: vertical; }
 .servicios .desc { display: block; color: var(--gris); font-size: .92rem; line-height: 1.35; }
 .icono { display: grid; place-items: center; width: 3rem; height: 3rem; color: var(--lila-hondo); background: var(--blanco); border: 1.5px solid var(--lila); border-radius: 50%; }
 .icono svg { width: 1.45rem; height: 1.45rem; }
+
+/* Estado de los servicios en el menú. El color siempre va con su texto */
+.estado { margin: 0 0 1.2rem; padding: .7rem 1rem; background: var(--pildora); border-radius: 1rem; }
+.estado summary { display: flex; align-items: center; gap: .6rem; cursor: pointer; font-weight: 500; }
+.estado-lista { list-style: none; margin: .7rem 0 0; padding: 0; }
+.estado-lista li { display: flex; align-items: center; gap: .6rem; padding: .2rem 0; }
+.estado-texto { margin-left: auto; color: var(--gris); font-size: .95rem; }
+.estado-aviso { margin: .6rem 0 0; color: var(--rojo); font-weight: 500; }
+.punto { flex: none; width: .8rem; height: .8rem; border-radius: 50%; background: var(--lavanda); }
+.punto.verde { background: #1e7d4f; }
+.punto.amarillo { background: #e0a100; }
+.punto.rojo { background: var(--rojo); }
+.punto.desconocido { background: var(--lavanda); }
