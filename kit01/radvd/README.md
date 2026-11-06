@@ -1,6 +1,6 @@
 # radvd en kit01
 
-Anuncios de router (RA) para los clientes de la Interna y la Comunidad (D-20, secciones 8.2 y 8.3). Lo instala y configura el rol `radvd` de [`../../ansible/roles/radvd/`](../../ansible/roles/radvd/) con `platform/ansible/playbooks/dhcp.yml`, junto con Kea DHCPv4 y DHCPv6.
+Anuncios de router (RA) para los clientes de la Interna y la Comunidad. Lo instala y configura el rol `radvd` de [`../../ansible/roles/radvd/`](../../ansible/roles/radvd/) con `platform/ansible/playbooks/dhcp.yml`, junto con Kea DHCPv4 y DHCPv6.
 
 | Elemento | Valor |
 |---|---|
@@ -31,6 +31,6 @@ El rol instala el paquete sin arrancarlo, valida la configuración con `radvd -c
 
 ## Diagnóstico
 
-- **El cliente no toma dirección IPv6.** Ver si llegan los RA con el `tcpdump` de arriba. El firewall de kit01 deja pasar los RS desde `fe80::/10` (F-19), y el cliente tiene que aceptar RA.
+- **El cliente no toma dirección IPv6.** Ver si llegan los RA con el `tcpdump` de arriba. El firewall de kit01 deja pasar los RS desde `fe80::/10`, y el cliente tiene que aceptar RA.
 - **La ruta por defecto IPv6 no es `fe80::1`.** Revisar `AdvRASrcAddress` y que `fe80::1/64` esté en la interfaz (`ip -6 addr show br-com`).
 - **Aparecen RA de otro equipo.** Solo kit01 debe anunciar; el filtro de RA en sw01 es network#11.

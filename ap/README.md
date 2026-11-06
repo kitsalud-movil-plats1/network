@@ -1,6 +1,6 @@
 # ap01, TP-Link TL-WA801ND v3
 
-AP del kit (sección 5.3 del documento). La ficha del equipo, con menús y valores de fábrica, está en `workspace/contexto/equipos/ap01-tl-wa801nd.md`.
+AP del kit. La ficha del equipo, con menús y valores de fábrica, está en `workspace/contexto/equipos/ap01-tl-wa801nd.md`.
 
 **Estado (2026-11-02).** Configurado y conectado a ether2 de sw01. La configuración se comprueba en remoto desde kit01 con `revisar-ap.sh`, y un cliente de la Comunidad (`prueba01`) recibe IPv4 e IPv6 de su red y no llega a la gestión del AP. Los celulares en cada SSID y el aislamiento entre clientes del mismo SSID se demuestran en la sustentación.
 
@@ -19,7 +19,7 @@ Valores aplicados desde la interfaz web del AP y comprobados con `revisar-ap.sh`
 | Servidor DHCP del AP | Desactivado |
 | WPS, SNMP | Desactivados |
 | AP Isolation | Activado (aplica a los dos SSID) |
-| Contraseña de administración | La de fábrica, que se mantiene por alcance académico (R-12) |
+| Contraseña de administración | La de fábrica, que se mantiene por alcance académico |
 | Respaldo | Archivo de Backup, guardado fuera del repositorio |
 
 ## Revisar la configuración
