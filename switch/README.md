@@ -1,6 +1,6 @@
 # sw01, MikroTik CCR2004-16G-2S+PC
 
-Switch L2 del kit (D-03, sección 5.2 del documento). La ficha del equipo está en `workspace/contexto/equipos/sw01-ccr2004.md`.
+Switch L2 del kit. La ficha del equipo está en `workspace/contexto/equipos/sw01-ccr2004.md`.
 
 **Estado (2026-10-09).** Configuración base aplicada en la primera sesión de laboratorio. El archivo es [`sw01.rsc`](sw01.rsc) (`/export terse`; RouterOS 7 omite los datos sensibles).
 
@@ -14,7 +14,7 @@ Switch L2 del kit (D-03, sección 5.2 del documento). La ficha del equipo está 
 | ether4-ether8 | `ether4-interna` … `ether8-interna` | Estaciones (sin conectar) | Acceso VLAN 10 | Habilitados |
 | ether9-ether16, SFP+ | - | - | - | Deshabilitados, fuera del bridge |
 
-ether2 es híbrido porque la gestión del AP responde sin etiqueta (S-03).
+ether2 es híbrido porque la gestión del AP responde sin etiqueta.
 
 ## Configuración aplicada
 
@@ -26,8 +26,8 @@ ether2 es híbrido porque la gestión del AP responde sin etiqueta (S-03).
 - **RA desde los puertos de acceso.** La lista de interfaces `acceso` tiene ether2 (el AP, con los clientes Wi-Fi de las dos VLAN) y ether4 a ether8. Una regla de `/interface bridge filter` descarta en `forward` el IPv6 hacia `33:33:00:00:00:01` (la MAC de `ff02::1`, todos los nodos) que entre por esos puertos, que es donde van los RA. RouterOS no tiene RA Guard ni distingue el tipo de ICMPv6 en el bridge, así que la regla también descarta los NA no solicitados de los clientes, que no hacen falta. Los RA de kit01 entran por ether1 y no se tocan.
 - **Puertos de acceso por la CPU.** El chip (Marvell 88E6191X) no acepta reglas de switch, y con conmutación por hardware el filtro del bridge no ve el multicast. Por eso ether2 y ether4 a ether8 tienen `hw=no`. ether1 sigue con conmutación por hardware. Con el AP de 100 Mb/s y pocas estaciones, la CPU del CCR2004 queda cerca de 0 %.
 - Nombre `sw01`, zona horaria `America/Bogota` y cliente NTP de `10.20.20.10` (`ntp.salud.movil`, Chrony en kit01); `/system ntp client print` debe decir `synchronized`.
-- Syslog hacia kit01 (F-16, observability#3). La acción `remote` envía a `10.20.20.10:514` por UDP en formato BSD (`bsd-syslog=yes`), con los temas `info`, `warning`, `error` y `critical`, además de la memoria. Los mensajes quedan en `/var/log/kitsalud/sw01/syslog.log` de kit01. Se aplicó por SSH a través de kit01 en Safe Mode.
-- Usuario `admin`, que es el usuario compartido del grupo (D-18). Su contraseña se mantiene por alcance académico (R-14) y no se escribe en el repositorio.
+- Syslog hacia kit01. La acción `remote` envía a `10.20.20.10:514` por UDP en formato BSD (`bsd-syslog=yes`), con los temas `info`, `warning`, `error` y `critical`, además de la memoria. Los mensajes quedan en `/var/log/kitsalud/sw01/syslog.log` de kit01. Se aplicó por SSH a través de kit01 en Safe Mode.
+- Usuario `admin`, que es el usuario compartido del grupo. Su contraseña se mantiene por alcance académico y no se escribe en el repositorio.
 
 La base se aplicó por la consola serial (RJ45, 115200 8N1) en el orden de la guía. Primero los nombres y los puertos deshabilitados, luego bridge y VLAN con el filtrado apagado, gestión movida al bridge, servicios y, al final, el filtrado de VLAN.
 
@@ -61,7 +61,7 @@ Necesitan un equipo en un puerto de acceso. Con una laptop Linux en ether4 (VLAN
 2. **RA falso.** En la laptop, `radvd` anunciando `2001:db8:bad::/64`, o `sudo python3 -c` con scapy enviando un RA a `ff02::1`. En el cliente, `ip -6 addr` no debe mostrar `2001:db8:bad::` y `ip -6 route` solo `default via fe80::1`. En sw01, el contador de la regla de `/interface bridge filter print stats` sube.
 3. **Lo legítimo sigue.** El cliente recibe dirección de Kea, SLAAC de kit01 y llega a sus servicios, y `ansible-playbook playbooks/verificar-flujos.yml` pasa completo.
 
-**Lo que no cubre.** Un RA unicast, que solo se envía en respuesta a un RS y apunta a un cliente concreto, no se filtra (R-06). Entre clientes Wi-Fi lo evita el aislamiento del AP, y la regla corta los RA multicast de cualquier puerto de acceso.
+**Lo que no cubre.** Un RA unicast, que solo se envía en respuesta a un RS y apunta a un cliente concreto, no se filtra. Entre clientes Wi-Fi lo evita el aislamiento del AP, y la regla corta los RA multicast de cualquier puerto de acceso.
 
 ## Restaurar
 

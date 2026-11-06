@@ -1,6 +1,6 @@
 # Kea en kit01 (DHCPv4 y DHCPv6 sin estado)
 
-Servidores DHCPv4 y DHCPv6 sin estado del kit (R1, D-20, secciones 7.1 y 8.2). Los instalan y configuran los roles `kea_dhcp4` y `kea_dhcp6` de [`../../ansible/roles/`](../../ansible/roles/) con `platform/ansible/playbooks/dhcp.yml`, junto con radvd ([`../radvd/`](../radvd/)). Pools, préstamos y gateways salen de `red.yml` y las reservas de `dhcp.yml` (inventario de `platform/ansible`), así que cada valor se define una sola vez.
+Servidores DHCPv4 y DHCPv6 sin estado del kit. Los instalan y configuran los roles `kea_dhcp4` y `kea_dhcp6` de [`../../ansible/roles/`](../../ansible/roles/) con `platform/ansible/playbooks/dhcp.yml`, junto con radvd ([`../radvd/`](../radvd/)). Pools, préstamos y gateways salen de `red.yml` y las reservas de `dhcp.yml` (inventario de `platform/ansible`), así que cada valor se define una sola vez.
 
 | Elemento | Valor |
 |---|---|
@@ -9,7 +9,7 @@ Servidores DHCPv4 y DHCPv6 sin estado del kit (R1, D-20, secciones 7.1 y 8.2). L
 | Interna (`lan0.10`) | Pool `10.20.10.100 - 10.20.10.199`, préstamo de 8 h, gateway `10.20.10.1` |
 | Comunidad (`br-com`) | Pool `10.20.40.100 - 10.20.40.250`, préstamo de 1 h, gateway `10.20.40.1` |
 | Opciones | DNS `10.20.20.10`, dominio y búsqueda `salud.movil`, NTP `10.20.20.10` (opción 42) |
-| Reservas | `dhcp_reservas` (MAC, IP en `10.20.10.10-29`, nombre), para las estaciones de administración (D-18). En el kit está vacía hasta tener las MAC de las laptops del grupo |
+| Reservas | `dhcp_reservas` (MAC, IP en `10.20.10.10-29`, nombre), para las estaciones de administración. En el kit está vacía hasta tener las MAC de las laptops del grupo |
 | Préstamos | `memfile` en `/var/lib/kea/kea-leases4.csv` |
 | Log | Al journal, con nivel INFO (`DHCP4_LEASE_ALLOC` por cada asignación) |
 | DHCPv6 | Sin estado y sin pools: responde los `Information-Request` en `lan0.10` y `br-com` con DNS `fd5a:fc7e:d716:20::10`, búsqueda `salud.movil` y NTP `fd5a:fc7e:d716:20::10` (opción `sntp-servers`, enviada siempre). Kea responde desde la primera link-local de la interfaz; en kit01 es `fe80::1` |

@@ -1,6 +1,6 @@
 # Portal cautivo de kit01
 
-La Comunidad acepta las condiciones antes de usar la red, y el portal nunca da acceso a la red Interna, a clinica01 ni a la gestión (R5, D-22, sección 6.4). Todo vive en kit01, así que funciona aunque las VMs estén apagadas.
+La Comunidad acepta las condiciones antes de usar la red, y el portal nunca da acceso a la red Interna, a clinica01 ni a la gestión. Todo vive en kit01, así que funciona aunque las VMs estén apagadas.
 
 | Archivo | Dónde queda en kit01 | Qué es |
 |---|---|---|
@@ -15,13 +15,13 @@ Lo instala el rol `kit01_portal` de [`../../ansible/roles/`](../../ansible/roles
 1. **Cliente nuevo.** Un equipo de la Comunidad (`br-com`) recibe dirección por DHCPv4 y SLAAC y resuelve por BIND9. Mientras su MAC no esté en el set `portal_ok` de `inet filtro`, solo llega a DHCP, DNS y el 80 del portal.
 2. **Redirección.** La cadena `portal_redireccion` (`nat`, prerouting) manda a `10.20.40.1` o a `fd5a:fc7e:d716:40::1` todo su HTTP hacia cualquier destino que no sea kit01, y nginx lo lleva a `portal.salud.movil`. El HTTPS se rechaza con RST en `forward`, para que el navegador falle enseguida en lugar de quedarse esperando.
 3. **Aceptación.** El formulario hace `POST /aceptar`. nginx lo pasa al servicio con la IP del cliente en `X-Real-IP`. El servicio comprueba que la IP sea de la Comunidad, busca su MAC en la tabla de vecinos de `br-com` (`ip -j neigh`), que vale para IPv4 y para IPv6, y la agrega al set con `destroy element` y `add element`. Si ya estaba, el plazo empieza de nuevo. Responde `303` hacia `/inicio`.
-4. **Ya autorizado.** Con la MAC en el set llega a comunidad01 por el 80 y el 443 en IPv4 e IPv6 (F-09) y, si hay Internet, sale por IPv4 con NAT (F-10). IPv6 no sale a Internet, porque la red es ULA. Nunca llega a la Interna, a clinica01 ni al SSH o el monitoreo de kit01.
+4. **Ya autorizado.** Con la MAC en el set llega a comunidad01 por el 80 y el 443 en IPv4 e IPv6 y, si hay Internet, sale por IPv4 con NAT. IPv6 no sale a Internet, porque la red es ULA. Nunca llega a la Interna, a clinica01 ni al SSH o el monitoreo de kit01.
 5. **Vencimiento.** El set tiene `timeout 8h`, así que cada MAC sale sola a las 8 horas y el cliente vuelve a ver el portal. Las conexiones que ya estaban abiertas siguen hasta cerrarse.
 6. **Volver al menú.** nginx pasa también el `GET /` al servicio, que busca la MAC del cliente y contesta con `X-Accel-Redirect` el menú (`inicio.html`) si ya está en el set o las condiciones si no. Así `http://portal.salud.movil` siempre lleva al menú a quien ya aceptó. Si el servicio no responde, nginx muestra las condiciones.
 
 **Falla cerrada.** Sin el servicio, nadie nuevo queda autorizado, y sin el set (o con el set vacío) nadie de la Comunidad pasa de kit01. Las autorizaciones no sobreviven a un reinicio de kit01, porque el set arranca vacío; hay que volver a aceptar.
 
-**Servicio.** Solo usa la biblioteca estándar de Python, así que funciona sin Internet (R-05). Corre con `DynamicUser`, solo con `CAP_NET_ADMIN` (para `nft`), `ProtectSystem=strict` y sin acceso a `/home`. La MAC sale de la tabla de vecinos del kernel y nunca de lo que mande el cliente. Cada autorización queda en el journal (`autorizada <MAC> desde <IP>`), y también los rechazos.
+**Servicio.** Solo usa la biblioteca estándar de Python, así que funciona sin Internet. Corre con `DynamicUser`, solo con `CAP_NET_ADMIN` (para `nft`), `ProtectSystem=strict` y sin acceso a `/home`. La MAC sale de la tabla de vecinos del kernel y nunca de lo que mande el cliente. Cada autorización queda en el journal (`autorizada <MAC> desde <IP>`), y también los rechazos.
 
 **Aplicar el firewall.** `kit01_firewall` ignora el contenido del set al comparar (`nft -t`) y, cuando tiene que aplicar, vuelve a agregar cada MAC con el tiempo que le quedaba, en el mismo comando que recrea la tabla. Así aplicar el firewall no desconecta a la Comunidad.
 
@@ -39,7 +39,7 @@ Una segunda ejecución de los dos termina con `changed=0`, aunque haya MAC autor
 
 ## Cómo se verifica
 
-Desde `prueba01` (D-24), que se enciende con `ansible-playbook playbooks/prueba01.yml`, y en IPv4 e IPv6.
+Desde `prueba01`, que se enciende con `ansible-playbook playbooks/prueba01.yml`, y en IPv4 e IPv6.
 
 | Prueba | Sin aceptar | Después de `curl -X POST http://portal.salud.movil/aceptar` |
 |---|---|---|

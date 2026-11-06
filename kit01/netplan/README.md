@@ -1,10 +1,10 @@
 # Netplan de kit01
 
-[`50-cloud-init.yaml.j2`](50-cloud-init.yaml.j2) es la plantilla del netplan de kit01, que queda en `/etc/netplan/50-cloud-init.yaml` (permisos `600`). cloud-init está desactivado en kit01, así que el archivo no se regenera. Las NIC conservan los nombres del kernel (D-14).
+[`50-cloud-init.yaml.j2`](50-cloud-init.yaml.j2) es la plantilla del netplan de kit01, que queda en `/etc/netplan/50-cloud-init.yaml` (permisos `600`). cloud-init está desactivado en kit01, así que el archivo no se regenera. Las NIC conservan los nombres del kernel.
 
 | Interfaz | Uso | Direcciones |
 |---|---|---|
-| `enp170s0` (MAC `78:55:36:09:07:0b`, rol `wan0`) | Uplink del laboratorio | `192.168.160.69/24` fija, gateway `192.168.160.1`, DNS `192.168.215.20` y `.30`. Con `accept-ra: false` ignora los RA del uplink y no toma dirección del prefijo que anuncia el laboratorio (`2001:db8:a:c::/64`), porque el IPv6 del kit es solo interno (D-12, S-04, 8.3) |
+| `enp170s0` (MAC `78:55:36:09:07:0b`, rol `wan0`) | Uplink del laboratorio | `192.168.160.69/24` fija, gateway `192.168.160.1`, DNS `192.168.215.20` y `.30`. Con `accept-ra: false` ignora los RA del uplink y no toma dirección del prefijo que anuncia el laboratorio (`2001:db8:a:c::/64`), porque el IPv6 del kit es solo interno |
 | `enp171s0` (MAC `78:55:36:09:07:0a`, rol `lan0`) | Trunk hacia ether1 de sw01 | Sin dirección propia |
 | `lan0.10` (VLAN 10 sobre `enp171s0`) | Red Interna y gestión | `10.20.10.1/24`, `fd5a:fc7e:d716:10::1/64`, `fe80::1/64` |
 | `lan0.40` (VLAN 40 sobre `enp171s0`) | Puerto de `br-com` | Sin dirección |
@@ -29,7 +29,7 @@ ansible-playbook playbooks/red-kit01.yml                  # firewall (kit01_fire
 
 La plantilla toma las redes de `group_vars/all/red.yml`, los nombres de `iface_wan` e `iface_lan` y la WAN del sitio de `wan` en `host_vars/kit01.yml` (en el laboratorio, DHCP con `match` por MAC). El archivo generado no lleva cabecera, para que sea igual al que se escribió a mano.
 
-El rol nunca usa `netplan apply` ni `netplan try`, y aplica solo cuando hace falta (D-23, `AGENTS.md` sección 6).
+El rol nunca usa `netplan apply` ni `netplan try`, y aplica solo cuando hace falta.
 
 1. **Candidato aparte.** Genera el netplan en `/run/kitsalud-red/netplan/etc/netplan/` (tmpfs), junto con los demás archivos de `/etc/netplan`, y ejecuta `netplan generate --root-dir` sobre esa copia, lo que también lo valida. Lo hace también con `--check`.
 2. **Comparación.** Compara lo que genera con `/run/systemd/network` y con las reglas de udev de netplan. Si es igual, la red activa no cambia y no se recarga nada, aunque el archivo cambie (por ejemplo, un comentario).
@@ -67,4 +67,4 @@ Para revisar a mano lo que se va a generar, sin tocar `/etc` ni `/run`, se usa `
 
 ## Pendiente
 
-- Comprobar que las direcciones se mantienen después de reiniciar (P12, platform#13).
+- Comprobar que las direcciones se mantienen después de reiniciar.

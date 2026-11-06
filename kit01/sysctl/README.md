@@ -1,6 +1,6 @@
 # sysctl de kit01
 
-[`60-kit01-router.conf`](60-kit01-router.conf) activa el reenvío IPv4 e IPv6, porque kit01 es el router de las redes internas (D-02). Va en `/etc/sysctl.d/60-kit01-router.conf`.
+[`60-kit01-router.conf`](60-kit01-router.conf) activa el reenvío IPv4 e IPv6, porque kit01 es el router de las redes internas. Va en `/etc/sysctl.d/60-kit01-router.conf`.
 
 `enp170s0` ignora los RA del uplink (`accept-ra: false` en [`../netplan/`](../netplan/)), así que kit01 no tiene ruta IPv6 hacia la WAN. El tráfico que reenvía lo filtra la cadena `forward` de [`../nftables/`](../nftables/).
 
